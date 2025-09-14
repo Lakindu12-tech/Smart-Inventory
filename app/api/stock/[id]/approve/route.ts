@@ -13,7 +13,15 @@ export async function PATCH(req: NextRequest, { params }) {
     }
 
     const { id } = params;
-    // Don't require request body for approval
+    // Optional comment on approve; ignore if absent
+    let owner_comment: string | null = null;
+    try {
+      const body = await req.json();
+      const incoming = (body?.owner_comment ?? body?.comment ?? '').toString().trim();
+      owner_comment = incoming || null;
+    } catch {
+      owner_comment = null;
+    }
 
     // Get the stock movement
     const movements = await query('SELECT * FROM stock_movements WHERE id = ?', [id]) as any[];
@@ -24,9 +32,14 @@ export async function PATCH(req: NextRequest, { params }) {
       return NextResponse.json({ message: 'Stock movement already processed' }, { status: 400 });
     }
 
-    // Update stock movement status
-    await query('UPDATE stock_movements SET status = ?, approved_by = ?, created_at = NOW() WHERE id = ?', 
-      ['approved', decoded.userId, id]);
+    // Update stock movement status; append approve note to reason if provided
+    let reasonToStore = movement.reason || null;
+    if (owner_comment) {
+      const existing = movement.reason ? `${movement.reason}\n` : '';
+      reasonToStore = `${existing}Approved by owner: ${owner_comment}`.slice(0, 255);
+    }
+    await query('UPDATE stock_movements SET status = ?, approved_by = ?, reason = ?, updated_at = NOW() WHERE id = ?', 
+      ['approved', decoded.userId, reasonToStore, id]);
 
     return NextResponse.json({ message: 'Stock movement approved' });
   } catch (error: any) {

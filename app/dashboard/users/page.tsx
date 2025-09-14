@@ -176,11 +176,13 @@ export default function UserManagement() {
   };
 
   // Filtered users
-  const filteredUsers = users.filter(user => {
-    const matchesName = user.name.toLowerCase().includes(search.toLowerCase());
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    return matchesName && matchesRole;
-  });
+  const filteredUsers = users
+    .filter(user => {
+      const matchesName = user.name.toLowerCase().includes(search.toLowerCase());
+      const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+      return matchesName && matchesRole;
+    })
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // Role-based access control
   if (!currentUser) {

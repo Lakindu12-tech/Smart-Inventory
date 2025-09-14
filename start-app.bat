@@ -1,0 +1,6 @@
+@echo off
+echo Starting SD Bandara Trading Inventory System...
+echo.
+echo Opening browser in 5 seconds...
+echo.
+npm run dev 

@@ -20,6 +20,7 @@ interface ProductRequest {
   status: 'pending' | 'approved' | 'rejected';
   owner_comment?: string;
   created_at: string;
+  updated_at?: string;
   requester_name: string;
   request_type: 'product_request'; // To distinguish from stock movements
 }
@@ -37,6 +38,7 @@ interface StockMovement {
   approved_by?: number;
   approved_by_name?: string;
   created_at: string;
+  updated_at?: string;
   request_type: 'stock_movement'; // To distinguish from product requests
 }
 
@@ -113,11 +115,20 @@ export default function ApprovalsPage() {
     filterRequests();
   }, [allItems, filters]);
 
+  // Refetch when status filter changes to leverage backend filtering (DB-accurate)
+  useEffect(() => {
+    if (user && user.role === 'owner') {
+      fetchRequests();
+    }
+  }, [filters.status]);
+
   const fetchRequests = async () => {
     try {
       const token = localStorage.getItem('token');
       // Fetch product requests
-      const requestsResponse = await fetch('/api/product-requests', {
+      const prParams = new URLSearchParams();
+      if (filters.status !== 'all') prParams.append('status', filters.status);
+      const requestsResponse = await fetch(`/api/product-requests?${prParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!requestsResponse.ok) {
@@ -131,7 +142,10 @@ export default function ApprovalsPage() {
       setRequests(productRequests);
 
       // Fetch stock movements
-      const stockMovementsResponse = await fetch('/api/stock?movements=true', {
+      const smParams = new URLSearchParams();
+      smParams.append('movements', 'true');
+      if (filters.status !== 'all') smParams.append('status', filters.status);
+      const stockMovementsResponse = await fetch(`/api/stock?${smParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!stockMovementsResponse.ok) {
@@ -158,12 +172,11 @@ export default function ApprovalsPage() {
   };
 
   const filterRequests = () => {
-    let filtered = allItems;
-    
+    let filtered = [...allItems];
     if (filters.status !== 'all') {
-      filtered = filtered.filter(item => item.status === filters.status);
+      const wanted = String(filters.status).toLowerCase().trim();
+      filtered = filtered.filter(item => String(item.status).toLowerCase().trim() === wanted);
     }
-    
     if (filters.type !== 'all') {
       filtered = filtered.filter(item => {
         if (item.request_type === 'product_request') {
@@ -174,14 +187,18 @@ export default function ApprovalsPage() {
         return false;
       });
     }
-    
     if (filters.date) {
       const filterDate = new Date(filters.date).toDateString();
-      filtered = filtered.filter(item => 
-        new Date(item.created_at).toDateString() === filterDate
-      );
+      filtered = filtered.filter(item => {
+        const dateStr = (item as any).updated_at || item.created_at;
+        return new Date(dateStr).toDateString() === filterDate;
+      });
     }
-    
+    filtered = filtered.sort((a, b) => {
+      const aDate = new Date(((a as any).updated_at || a.created_at));
+      const bDate = new Date(((b as any).updated_at || b.created_at));
+      return bDate.getTime() - aDate.getTime();
+    });
     setFilteredItems(filtered);
   };
 
@@ -193,6 +210,10 @@ export default function ApprovalsPage() {
       const token = localStorage.getItem('token');
       
       let response;
+      if (actionType === 'reject' && !comment.trim()) {
+        throw new Error('Please enter a comment to reject');
+      }
+
       if (selectedItem.request_type === 'product_request') {
         // Handle product request approval/rejection
         response = await fetch(`/api/product-requests/${selectedItem.id}/${actionType}`, {
@@ -595,7 +616,7 @@ export default function ApprovalsPage() {
 
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                  Comment (Optional)
+                  {actionType === 'reject' ? 'Comment (Required for rejection)' : 'Comment (Optional)'}
                 </label>
                 <textarea
                   value={comment}
@@ -616,7 +637,7 @@ export default function ApprovalsPage() {
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button
                   onClick={handleAction}
-                  disabled={processing}
+                  disabled={processing || (actionType === 'reject' && !comment.trim())}
                   style={{
                     background: actionType === 'approve' ? '#1ecb4f' : '#ff3b3b',
                     color: '#fff',

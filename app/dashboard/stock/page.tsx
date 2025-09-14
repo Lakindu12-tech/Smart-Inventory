@@ -387,7 +387,7 @@ export default function StockPage() {
       (stockStatus === 'low' && status === 'low') ||
       (stockStatus === 'in' && status === 'in');
     return matchesName && matchesCategory && matchesStatus;
-  });
+  }).sort((a, b) => a.name.localeCompare(b.name));
 
   // Recently added products (last 10 by id/created_at desc)
   const recentlyAddedProducts = [...products]
@@ -401,14 +401,14 @@ export default function StockPage() {
     const matchesStatus = movementStatus === 'all' || m.status === movementStatus;
     const matchesDate = !movementDate || (m.created_at && m.created_at.slice(0, 10) === movementDate);
     return matchesName && matchesType && matchesStatus && matchesDate;
-  });
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   // Filtered add requests
   const filteredAddRequests = addRequests.filter(r => {
     const matchesName = !recentSearch || (r.product_name && r.product_name.toLowerCase().includes(recentSearch.toLowerCase()));
     const matchesStatus = recentStatus === 'all' || r.status === recentStatus;
     const matchesDate = !recentDate || (r.created_at && r.created_at.slice(0, 10) === recentDate);
     return matchesName && matchesStatus && matchesDate;
-  });
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   if (loading || !user) {
     return (

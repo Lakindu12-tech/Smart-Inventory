@@ -75,9 +75,18 @@ export async function GET(req: NextRequest) {
 
     // Fetch inventory data
     const inventory = await query(`
-      SELECT id, name, price, current_stock, category
-      FROM products
-      ORDER BY name
+      SELECT 
+        p.id, 
+        p.name, 
+        p.price, 
+        COALESCE(p.stock, 0) +
+        COALESCE(SUM(CASE WHEN sm.status = 'approved' AND sm.movement_type = 'in' THEN sm.quantity ELSE 0 END), 0) -
+        COALESCE(SUM(CASE WHEN sm.status = 'approved' AND sm.movement_type = 'out' THEN sm.quantity ELSE 0 END), 0) as current_stock, 
+        p.category
+      FROM products p
+      LEFT JOIN stock_movements sm ON p.id = sm.product_id
+      GROUP BY p.id, p.name, p.price, p.category
+      ORDER BY p.name
     `) as any[];
 
     // Fetch user data

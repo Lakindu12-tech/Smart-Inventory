@@ -25,11 +25,12 @@ export async function GET(req: NextRequest) {
     // Fetch products with calculated stock levels
     const products = await query(`
       SELECT p.*, 
+             COALESCE(p.stock, 0) +
              COALESCE(SUM(CASE WHEN sm.status = 'approved' AND sm.movement_type = 'in' THEN sm.quantity ELSE 0 END), 0) -
              COALESCE(SUM(CASE WHEN sm.status = 'approved' AND sm.movement_type = 'out' THEN sm.quantity ELSE 0 END), 0) as current_stock
       FROM products p
       LEFT JOIN stock_movements sm ON p.id = sm.product_id
-      GROUP BY p.id
+      GROUP BY p.id, p.name, p.price, p.stock, p.category, p.image_filename, p.created_at
       HAVING current_stock > 0
       ORDER BY p.name
     `) as any[];
@@ -79,21 +80,18 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { 
-      transaction_number,
       items, 
-      total_amount,
       payment_method = 'cash',
       discount = 0,
-      notes = '' 
+      notes = ''
     } = body;
-
-    if (!transaction_number) {
-      return NextResponse.json({ message: 'Transaction number is required' }, { status: 400 });
-    }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ message: 'Transaction items are required' }, { status: 400 });
     }
+
+    // Generate transaction number if not provided
+    const transaction_number = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
     // Validate items and calculate total
     let calculatedTotal = 0;
@@ -105,12 +103,13 @@ export async function POST(req: NextRequest) {
       // Get product details with current stock
       const products = await query(`
         SELECT p.*, 
+               COALESCE(p.stock, 0) + 
                COALESCE(SUM(CASE WHEN sm.status = 'approved' AND sm.movement_type = 'in' THEN sm.quantity ELSE 0 END), 0) -
                COALESCE(SUM(CASE WHEN sm.status = 'approved' AND sm.movement_type = 'out' THEN sm.quantity ELSE 0 END), 0) as current_stock
         FROM products p
         LEFT JOIN stock_movements sm ON p.id = sm.product_id
         WHERE p.id = ?
-        GROUP BY p.id
+        GROUP BY p.id, p.name, p.price, p.stock, p.category, p.image_filename, p.created_at
       `, [item.product_id]) as any[];
       
       if (!products.length) {
@@ -158,8 +157,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       message: 'Transaction created successfully',
-      transactionId,
-      transactionNumber: transaction_number,
+      transaction_id: transactionId,
+      transaction_number: transaction_number,
       totalAmount: finalTotal
     });
 

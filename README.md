@@ -1,70 +1,170 @@
-# Getting Started with Create React App
+# Smart Inventory Management System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A comprehensive inventory management system built with Next.js, TypeScript, and MySQL. Features advanced billing system with product images similar to Starbucks.
 
-## Available Scripts
+## 🚀 Features
 
-In the project directory, you can run:
+### Core Features
+- **User Management**: Role-based access control (Owner, Storekeeper, Cashier)
+- **Product Management**: Add, edit, and track products with categories
+- **Stock Management**: Real-time stock tracking and movements
+- **Advanced Billing System**: Modern POS-like interface with product images
+- **Sales Tracking**: Complete transaction history and reporting
+- **Request System**: Storekeepers can request product additions, price changes, and stock updates
 
-### `npm start`
+### Advanced Billing System 🎨
+- **Product Images**: Visual product selection with high-quality images
+- **Dual Upload Methods**: Support for both URL links and local file uploads
+- **Multiple Image Formats**: JPG, PNG, GIF, WebP, BMP support (max 5MB)
+- **Drag & Drop**: Easy file upload with drag and drop functionality
+- **Customization Panel**: Easy product image management for cashiers
+- **Modern UI**: Starbucks-inspired interface with smooth animations
+- **Visual Product Cards**: Product images with hover effects and stock indicators
+- **Enhanced Cart**: Visual cart items with product images
+- **Responsive Design**: Works perfectly on different screen sizes
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## 🛠️ Technology Stack
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- **Frontend**: Next.js 14, TypeScript, React
+- **Backend**: Next.js API Routes
+- **Database**: MySQL
+- **Authentication**: JWT tokens
+- **Styling**: CSS-in-JS with modern design patterns
 
-### `npm test`
+## 📦 Installation
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-### `npm run build`
+3. Set up environment variables in `.env`:
+   ```
+   DB_HOST=localhost
+   DB_USER=root
+   DB_PASSWORD=your_password
+   DB_NAME=smart_inventory
+   DB_PORT=3306
+   JWT_SECRET=your_jwt_secret
+   ```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+4. Run database migrations:
+   ```bash
+   node testing/migrate-add-product-images.js
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+5. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 🎯 Usage
 
-### `npm run eject`
+### Default Admin Account
+- **Email**: admin@inventory.com
+- **Password**: admin123
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Advanced Billing Features
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. **Product Customization**:
+   - Click the 🎨 Customize button in the top-right corner of the billing page
+   - Choose between URL input or file upload methods
+   - Upload local images (drag & drop supported) or paste image URLs
+   - Preview images before saving
+   - Remove images if needed
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+2. **Visual Product Selection**:
+   - Products display with images (if available)
+   - Hover effects and animations
+   - Stock indicators and availability status
+   - Grid layout for easy browsing
+   - Support for multiple image formats
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+3. **Enhanced Cart Experience**:
+   - Visual cart items with product images
+   - Real-time total calculation
+   - Smooth quantity adjustments
+   - Modern checkout process
 
-## Learn More
+## 📱 Screenshots
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Advanced Billing Interface
+- Modern product grid with images
+- Customization panel for product images
+- Enhanced cart with visual items
+- Starbucks-inspired design
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### Product Customization
+- Easy image management
+- Preview functionality
+- Bulk product selection
+- User-friendly interface
 
-### Code Splitting
+## 🔧 API Endpoints
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Products
+- `GET /api/products` - List all products
+- `PATCH /api/products/[id]/image` - Update product image
 
-### Analyzing the Bundle Size
+### Authentication
+- `POST /api/auth/login` - User login
+- `POST /api/auth/register` - User registration
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### Sales
+- `POST /api/sales` - Create new sale
+- `GET /api/sales` - Get sales history
 
-### Making a Progressive Web App
+## 🎨 Customization
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+The system supports extensive customization:
 
-### Advanced Configuration
+- **Product Images**: Add high-quality product images via URL
+- **UI Themes**: Modern, clean interface with smooth animations
+- **Layout**: Responsive grid system for optimal viewing
+- **Branding**: Customizable company information and styling
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## 📊 Reporting
 
-### Deployment
+- Sales reports with detailed analytics
+- Stock movement tracking
+- User activity monitoring
+- Transaction history
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## 🔒 Security
 
-### `npm run build` fails to minify
+- JWT-based authentication
+- Role-based access control
+- Secure API endpoints
+- Input validation and sanitization
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## 🚀 Deployment
+
+1. Build the application:
+   ```bash
+   npm run build
+   ```
+
+2. Start the production server:
+   ```bash
+   npm start
+   ```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For support and questions, please contact the development team or create an issue in the repository.
+
+---
+
+**Built with ❤️ for modern inventory management**

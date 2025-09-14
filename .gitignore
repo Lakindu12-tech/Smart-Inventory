@@ -26,3 +26,7 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Product images (user uploaded)
+/public/images/products/*
+!/public/images/products/.gitkeep

@@ -24,6 +24,7 @@ interface RecentActivity {
   type: string;
   message: string;
   timestamp: string;
+  timeMs: number;
 }
 
 export default function Dashboard() {
@@ -162,22 +163,26 @@ export default function Dashboard() {
       // Add recent requests
       const recentRequests = requests.slice(0, 3);
       recentRequests.forEach((req: any) => {
-        const timeAgo = getTimeAgo(new Date(req.created_at));
+        const createdAt = new Date(req.created_at);
+        const timeAgo = getTimeAgo(createdAt);
         activity.push({
           type: 'request',
           message: `${req.type === 'add' ? 'Add' : req.type === 'price' ? 'Price change' : 'Stock change'} request for ${req.product_name || 'product'} (${req.status})`,
-          timestamp: timeAgo
+          timestamp: timeAgo,
+          timeMs: createdAt.getTime()
         });
       });
 
       // Add recent stock movements
       const recentStockMovements = stockMovements.slice(0, 3);
       recentStockMovements.forEach((movement: any) => {
-        const timeAgo = getTimeAgo(new Date(movement.created_at));
+        const createdAt = new Date(movement.created_at);
+        const timeAgo = getTimeAgo(createdAt);
         activity.push({
           type: 'movement',
           message: `${movement.movement_type} movement for ${movement.product_name} (${movement.quantity} units) - ${movement.status}`,
-          timestamp: timeAgo
+          timestamp: timeAgo,
+          timeMs: createdAt.getTime()
         });
       });
 
@@ -192,11 +197,13 @@ export default function Dashboard() {
             const salesData = JSON.parse(salesText);
             const recentTransactions = salesData.transactions?.slice(0, 3) || [];
             recentTransactions.forEach((t: any) => {
-              const timeAgo = getTimeAgo(new Date(t.date));
+              const createdAt = new Date(t.date);
+              const timeAgo = getTimeAgo(createdAt);
               activity.push({
                 type: 'sale',
                 message: `Sale #${t.id} - Rs.${t.total_amount?.toFixed(2) || '0'} (${t.items?.length || 0} items)`,
-                timestamp: timeAgo
+                timestamp: timeAgo,
+                timeMs: createdAt.getTime()
               });
             });
           }
@@ -206,7 +213,7 @@ export default function Dashboard() {
       }
 
       // Sort activity by timestamp (most recent first)
-      activity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      activity.sort((a, b) => (b.timeMs || 0) - (a.timeMs || 0));
       setRecentActivity(activity.slice(0, 5));
 
     } catch (error) {

@@ -13,30 +13,36 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const includeMovements = searchParams.get('movements') === 'true';
+    const statusFilter = (searchParams.get('status') || '').toLowerCase();
 
     // Get products with current stock levels
     const products = await query(`
       SELECT p.*, 
+             COALESCE(p.stock, 0) +
              COALESCE(SUM(CASE WHEN sm.status = 'approved' AND sm.movement_type = 'in' THEN sm.quantity ELSE 0 END), 0) -
              COALESCE(SUM(CASE WHEN sm.status = 'approved' AND sm.movement_type = 'out' THEN sm.quantity ELSE 0 END), 0) as current_stock
       FROM products p
       LEFT JOIN stock_movements sm ON p.id = sm.product_id
-      GROUP BY p.id
+      GROUP BY p.id, p.name, p.price, p.stock, p.category, p.image_filename, p.created_at
       ORDER BY p.name ASC
     `) as any[];
 
     let movements = [];
     if (includeMovements) {
-      // Get recent stock movements
-      movements = await query(`
+      // Get recent stock movements with optional status filter
+      let sql = `
         SELECT sm.*, p.name as product_name, u.name as performed_by_name, a.name as approved_by_name
         FROM stock_movements sm
         JOIN products p ON sm.product_id = p.id
         JOIN users u ON sm.performed_by = u.id
-        LEFT JOIN users a ON sm.approved_by = a.id
-        ORDER BY sm.created_at DESC
-        LIMIT 50
-      `) as any[];
+        LEFT JOIN users a ON sm.approved_by = a.id`;
+      const params: any[] = [];
+      if (['pending', 'approved', 'rejected'].includes(statusFilter)) {
+        sql += `\n        WHERE sm.status = ?`;
+        params.push(statusFilter);
+      }
+      sql += `\n        ORDER BY COALESCE(sm.updated_at, sm.created_at) DESC\n        LIMIT 50`;
+      movements = await query(sql, params) as any[];
     }
 
     return NextResponse.json({ products, movements });

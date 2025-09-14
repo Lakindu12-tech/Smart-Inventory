@@ -14,6 +14,7 @@ interface Product {
   name: string;
   price: string;
   stock: number;
+  current_stock?: number; // Add current_stock field for accurate stock display
   category: string;
 }
 
@@ -99,6 +100,16 @@ export default function ProductsPage() {
       try {
         const productsText = await productsRes.text();
         if (productsText) productsData = JSON.parse(productsText);
+        console.log('📦 Products data received:', productsData);
+        console.log('📦 Sample product:', productsData[0]);
+        if (productsData[0]) {
+          console.log('📦 Sample product stock info:', {
+            name: productsData[0].name,
+            stock: productsData[0].stock,
+            current_stock: productsData[0].current_stock,
+            calculated: getActualStock(productsData[0])
+          });
+        }
       } catch (e) {
         console.error('Error parsing products response:', e);
       }
@@ -270,6 +281,11 @@ export default function ProductsPage() {
     }
   };
 
+  // Helper function to get actual stock value
+  const getActualStock = (product: Product) => {
+    return product.current_stock !== undefined ? product.current_stock : product.stock;
+  };
+
   // Add a logout function
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -320,14 +336,16 @@ export default function ProductsPage() {
   };
 
   // Filtered price change requests for storekeeper
-  const filteredPriceRequests = requests.filter(r => r.type === 'price')
+  const filteredPriceRequests = requests
+    .filter(r => r.type === 'price')
     .filter(r => {
       const product = products.find(p => p.id === r.product_id);
       const matchesName = !search || (product && product.name.toLowerCase().includes(search.toLowerCase()));
       const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
       const matchesDate = !dateFilter || (r.created_at && r.created_at.slice(0, 10) === dateFilter);
       return matchesName && matchesStatus && matchesDate;
-    });
+    })
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   if (loading || !user) {
     return (
@@ -410,13 +428,13 @@ export default function ProductsPage() {
                   borderRadius: '4px',
                   fontSize: '0.8rem',
                   fontWeight: 500,
-                  background: product.stock <= 0 ? '#ffebee' : 
-                             product.stock <= 10 ? '#fff3e0' : '#e8f5e8',
-                  color: product.stock <= 0 ? '#ff3b3b' : 
-                         product.stock <= 10 ? '#ff9500' : '#1ecb4f'
+                  background: getActualStock(product) <= 0 ? '#ffebee' : 
+                             getActualStock(product) <= 10 ? '#fff3e0' : '#e8f5e8',
+                  color: getActualStock(product) <= 0 ? '#ff3b3b' : 
+                         getActualStock(product) <= 10 ? '#ff9500' : '#1ecb4f'
                 }}>
-                  Stock: {product.stock} {product.stock <= 0 ? '(Out of Stock)' : 
-                                         product.stock <= 10 ? '(Low Stock)' : '(In Stock)'}
+                  Stock: {getActualStock(product)} {getActualStock(product) <= 0 ? '(Out of Stock)' : 
+                                         getActualStock(product) <= 10 ? '(Low Stock)' : '(In Stock)'}
                 </div>
               </div>
             ))}
@@ -1100,10 +1118,10 @@ export default function ProductsPage() {
                   <div style={{ fontWeight: 500 }}>{product.name}</div>
                   <div>Rs.{product.price}</div>
                   <div style={{ 
-                    color: product.stock > 0 ? '#1ecb4f' : '#ff3b3b',
+                    color: getActualStock(product) > 0 ? '#1ecb4f' : '#ff3b3b',
                     fontWeight: 600
                   }}>
-                    {product.stock}
+                    {getActualStock(product)}
                   </div>
                   <div>{product.category}</div>
                 </div>

@@ -10,10 +10,81 @@ interface DashboardLayoutProps {
   userName: string;
 }
 
+interface PendingRequest {
+  id: number;
+  type: string;
+  product_name?: string;
+  requester_name?: string;
+  created_at: string;
+}
+
 export default function DashboardLayout({ children, userRole, userName }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const router = useRouter();
+
+  // Check for pending requests when owner logs in
+  useEffect(() => {
+    if (userRole === 'owner') {
+      checkPendingRequests();
+    }
+  }, [userRole]);
+
+  const checkPendingRequests = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      // Fetch product requests
+      const requestsRes = await fetch('/api/product-requests', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      let requests: any[] = [];
+      try {
+        const requestsText = await requestsRes.text();
+        if (requestsText) requests = JSON.parse(requestsText);
+      } catch (e) {
+        console.error('Error parsing requests response:', e);
+      }
+
+      // Fetch stock movements
+      const stockRes = await fetch('/api/stock?movements=true', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      let stockData = { movements: [] };
+      try {
+        const stockText = await stockRes.text();
+        if (stockText) stockData = JSON.parse(stockText);
+      } catch (e) {
+        console.error('Error parsing stock response:', e);
+      }
+
+      const pendingProductRequests = requests.filter((r: any) => r.status === 'pending');
+      const pendingStockMovements = stockData.movements?.filter((m: any) => m.status === 'pending') || [];
+
+      const totalPending = pendingProductRequests.length + pendingStockMovements.length;
+      
+      if (totalPending > 0) {
+        setPendingCount(totalPending);
+        setShowNotification(true);
+        
+        // Auto-hide notification after 10 seconds
+        setTimeout(() => {
+          setShowNotification(false);
+        }, 10000);
+      }
+    } catch (error) {
+      console.error('Error checking pending requests:', error);
+    }
+  };
+
+  const handleNotificationClick = () => {
+    setShowNotification(false);
+    router.push('/dashboard/approvals');
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -48,7 +119,7 @@ export default function DashboardLayout({ children, userRole, userName }: Dashbo
         return [
           ...baseItems,
           { name: 'User Management', icon: '👥', href: '/dashboard/users' },
-          { name: 'Product Approvals', icon: '✅', href: '/dashboard/approvals' },
+          { name: 'Product Approvals', icon: '✅', href: '/dashboard/approvals', badge: pendingCount > 0 ? pendingCount : undefined },
           { name: 'Stock Management', icon: '📋', href: '/dashboard/stock' },
           { name: 'Reports & Analytics', icon: '📊', href: '/dashboard/reports' }
         ];
@@ -73,6 +144,59 @@ export default function DashboardLayout({ children, userRole, userName }: Dashbo
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f7f7f7' }}>
+      {/* Notification Banner for Owner */}
+      {showNotification && userRole === 'owner' && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: 'linear-gradient(135deg, #ff9500, #ff6b35)',
+          color: '#fff',
+          padding: '1rem 1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 4px 20px rgba(255,149,0,0.3)',
+          zIndex: 2000,
+          cursor: 'pointer',
+          animation: 'slideIn 0.5s ease-out',
+          maxWidth: '350px',
+          border: '2px solid rgba(255,255,255,0.2)'
+        }}
+        onClick={handleNotificationClick}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = '0 6px 25px rgba(255,149,0,0.4)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,149,0,0.3)';
+        }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '1.5rem' }}>🔔</div>
+            <div style={{ fontWeight: 600, fontSize: '1rem' }}>Pending Requests</div>
+            <div style={{
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '50%',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.8rem',
+              fontWeight: 'bold'
+            }}>
+              {pendingCount}
+            </div>
+          </div>
+          <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>
+            You have {pendingCount} pending request{pendingCount > 1 ? 's' : ''} that need your approval.
+          </div>
+          <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '0.5rem' }}>
+            Click to review → 
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div style={{
         width: isSidebarOpen ? 280 : 80,
@@ -153,13 +277,35 @@ export default function DashboardLayout({ children, userRole, userName }: Dashbo
                 color: '#333',
                 textDecoration: 'none',
                 transition: 'background 0.2s',
-                fontSize: '0.9rem'
+                fontSize: '0.9rem',
+                position: 'relative'
               }}
               onMouseEnter={(e) => e.currentTarget.style.background = '#f0f0f0'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
               <span style={{ fontSize: '1.1rem' }}>{item.icon}</span>
-              {isSidebarOpen && <span>{item.name}</span>}
+              {isSidebarOpen && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                  <span>{item.name}</span>
+                  {item.badge && (
+                    <div style={{
+                      background: '#ff9500',
+                      color: '#fff',
+                      borderRadius: '50%',
+                      width: '20px',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.7rem',
+                      fontWeight: 'bold',
+                      marginLeft: 'auto'
+                    }}>
+                      {item.badge}
+                    </div>
+                  )}
+                </div>
+              )}
             </a>
           ))}
         </nav>
@@ -255,6 +401,20 @@ export default function DashboardLayout({ children, userRole, userName }: Dashbo
       {showPasswordChange && (
         <PasswordChange onClose={() => setShowPasswordChange(false)} />
       )}
+
+      {/* CSS Animation for notification */}
+      <style jsx>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 } 

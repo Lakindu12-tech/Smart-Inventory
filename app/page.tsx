@@ -6,6 +6,7 @@ export default function LoginPage() {
   const [step, setStep] = useState<'username' | 'password'>('username');
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -93,16 +94,37 @@ export default function LoginPage() {
         {step === 'password' && (
           <form onSubmit={handleLogin} style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
             <label htmlFor="password" style={{ alignSelf: 'flex-start' }}>🔒 Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              style={{ width: '100%', maxWidth: 260, margin: 0, display: 'block' }}
-              autoFocus
-              autoComplete="current-password"
-            />
+            <div style={{ display: 'flex', alignItems: 'center', width: '100%', maxWidth: 260, gap: 8 }}>
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                style={{ flex: 1, width: '100%', margin: 0, display: 'block' }}
+                autoFocus
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword(p => !p)}
+                style={{
+                  background: '#f8f9fa',
+                  border: '1.5px solid #e0e0e0',
+                  borderRadius: 8,
+                  width: 36,
+                  height: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
             {error && <div className="error">❌ {error}</div>}
             <button type="submit" style={{ width: '100%', maxWidth: 260, marginTop: 8 }} disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}

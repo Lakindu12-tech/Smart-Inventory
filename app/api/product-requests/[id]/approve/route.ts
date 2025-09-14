@@ -12,7 +12,14 @@ export async function PATCH(req: NextRequest, { params }) {
       return NextResponse.json({ message: 'Only owner can approve requests' }, { status: 403 });
     }
     const { id } = params;
-    const { owner_comment } = await req.json();
+    let owner_comment: string | null = null;
+    try {
+      const body = await req.json();
+      const incoming = (body?.owner_comment ?? body?.comment ?? '').toString().trim();
+      owner_comment = incoming || null;
+    } catch {
+      owner_comment = null;
+    }
     // Get the request
     const requests = await query('SELECT * FROM product_requests WHERE id = ?', [id]) as any[];
     if (!requests.length) return NextResponse.json({ message: 'Request not found' }, { status: 404 });
@@ -30,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }) {
       await query('UPDATE products SET stock = stock + ? WHERE id = ?', [request.requested_quantity, request.product_id]);
     }
     // Mark request as approved
-    await query('UPDATE product_requests SET status = ?, owner_comment = ?, updated_at = NOW() WHERE id = ?', ['approved', owner_comment || null, id]);
+    await query('UPDATE product_requests SET status = ?, owner_comment = ?, updated_at = NOW() WHERE id = ?', ['approved', owner_comment, id]);
     return NextResponse.json({ message: 'Request approved and processed' });
   } catch (error: any) {
     return NextResponse.json({ message: error.message || 'Failed to approve request' }, { status: 500 });

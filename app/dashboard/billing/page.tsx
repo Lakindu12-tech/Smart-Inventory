@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/DashboardLayout';
+import ProductCustomizationModal from '../../components/ProductCustomizationModal';
 
 interface Product {
   id: number;
@@ -9,6 +10,7 @@ interface Product {
   price: string;
   current_stock: number;
   category: string;
+  image_filename?: string;
 }
 
 interface CartItem {
@@ -17,6 +19,7 @@ interface CartItem {
   price: number;
   qty: number;
   stock: number;
+  image_filename?: string;
 }
 
 interface User {
@@ -25,7 +28,7 @@ interface User {
   role: string;
 }
 
-// Clean Product Button Component
+// Advanced Product Button Component with Images
 const ProductButton = ({ product, onAdd }: { product: Product; onAdd: (product: Product) => void }) => {
   const [showModal, setShowModal] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -47,23 +50,124 @@ const ProductButton = ({ product, onAdd }: { product: Product; onAdd: (product: 
           background: '#1ecb4f',
           color: 'white',
           border: 'none',
-          borderRadius: '8px',
-          padding: '12px 16px',
-          margin: '4px',
+          borderRadius: '12px',
+          padding: '16px',
+          margin: '6px',
           cursor: product.current_stock > 0 ? 'pointer' : 'not-allowed',
           fontSize: '14px',
           fontWeight: 500,
-          minWidth: '120px',
-          textAlign: 'left'
+          minWidth: '140px',
+          minHeight: '120px',
+          textAlign: 'left',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          transition: 'all 0.2s ease',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontWeight: 600 }}>{product.name}</span>
-          <span>Rs.{Number(product.price).toFixed(2)}/kg</span>
-          <span style={{ fontSize: '12px', opacity: 0.8 }}>
+        {/* Product Image */}
+        <div style={{
+          width: '60px',
+          height: '60px',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          background: '#f0f0f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px solid rgba(255,255,255,0.3)'
+        }}>
+          {product.image_filename ? (
+            <img
+              src={`/images/products/${product.image_filename}`}
+              alt={product.name}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling!.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <div style={{
+            display: product.image_filename ? 'none' : 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#666',
+            fontSize: '24px'
+          }}>
+            🥬
+          </div>
+        </div>
+
+        {/* Product Info */}
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '4px',
+          textAlign: 'center',
+          width: '100%'
+        }}>
+          <span style={{ 
+            fontWeight: 600, 
+            fontSize: '13px',
+            lineHeight: '1.2',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}>
+            {product.name}
+          </span>
+          <span style={{ 
+            fontSize: '12px',
+            opacity: 0.9,
+            fontWeight: 500
+          }}>
+            Rs.{Number(product.price).toFixed(2)}/kg
+          </span>
+          <span style={{ 
+            fontSize: '11px', 
+            opacity: 0.8,
+            background: 'rgba(255,255,255,0.2)',
+            padding: '2px 6px',
+            borderRadius: '4px'
+          }}>
             Stock: {product.current_stock}kg
           </span>
         </div>
+
+        {/* Stock Indicator */}
+        {product.current_stock <= 0 && (
+          <div style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            background: '#ff3b3b',
+            color: 'white',
+            fontSize: '10px',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            fontWeight: 600
+          }}>
+            OUT
+          </div>
+        )}
       </button>
 
       {showModal && (
@@ -153,7 +257,7 @@ const ProductButton = ({ product, onAdd }: { product: Product; onAdd: (product: 
   );
 };
 
-// Clean Cart Item Component
+// Enhanced Cart Item Component with Images
 const CartItem = ({ item, onUpdateQty, onRemove }: { 
   item: CartItem; 
   onUpdateQty: (id: number, qty: number) => void;
@@ -166,13 +270,54 @@ const CartItem = ({ item, onUpdateQty, onRemove }: {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '12px',
+      padding: '16px',
       borderBottom: '1px solid #eee',
-      gap: '12px'
+      gap: '16px',
+      background: '#fafafa',
+      borderRadius: '8px',
+      marginBottom: '8px'
     }}>
+      {/* Product Image */}
+      <div style={{
+        width: '50px',
+        height: '50px',
+        borderRadius: '6px',
+        overflow: 'hidden',
+        background: '#f0f0f0',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+      }}>
+        {item.image_filename ? (
+          <img
+            src={`/images/products/${item.image_filename}`}
+            alt={item.name}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling!.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div style={{
+          display: item.image_filename ? 'none' : 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#666',
+          fontSize: '20px'
+        }}>
+          🥬
+        </div>
+      </div>
+
       <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 600, marginBottom: '4px' }}>{item.name}</div>
-        <div style={{ color: '#666', fontSize: '14px' }}>
+        <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '15px' }}>{item.name}</div>
+        <div style={{ color: '#666', fontSize: '13px' }}>
           Rs.{item.price.toFixed(2)}/kg
         </div>
       </div>
@@ -356,6 +501,7 @@ export default function BillingPage() {
   const [payment, setPayment] = useState('cash');
   const [discount, setDiscount] = useState(0);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showCustomization, setShowCustomization] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [transactionId, setTransactionId] = useState('');
@@ -394,8 +540,9 @@ export default function BillingPage() {
     fetch('/api/products')
       .then(r => r.json())
       .then(data => {
-        const sortedProducts = data.sort((a, b) => a.name.localeCompare(b.name));
-        setProducts(Array.isArray(data) ? sortedProducts : []);
+        const list = Array.isArray(data) ? data : [];
+        const sortedProducts = [...list].sort((a, b) => a.name.localeCompare(b.name));
+        setProducts(sortedProducts);
       })
       .catch(err => setError('Failed to load products'));
   }, [router]);
@@ -420,7 +567,8 @@ export default function BillingPage() {
         name: product.name,
         price: Number(product.price),
         qty: product.qty,
-        stock: product.current_stock
+        stock: product.current_stock,
+        image_filename: product.image_filename
       }]);
     }
   };
@@ -469,7 +617,7 @@ export default function BillingPage() {
         throw new Error(data.message || 'Checkout failed');
       }
 
-      setTransactionId(data.transaction_id);
+      setTransactionId(data.transaction_id || data.transactionId);
       setShowReceipt(true);
       setCart([]);
       setDiscount(0);
@@ -478,7 +626,8 @@ export default function BillingPage() {
       fetch('/api/products')
         .then(r => r.json())
         .then(data => {
-          const sortedProducts = data.sort((a, b) => a.name.localeCompare(b.name));
+          const list = Array.isArray(data) ? data : [];
+          const sortedProducts = [...list].sort((a, b) => a.name.localeCompare(b.name));
           setProducts(sortedProducts);
         });
     } catch (error: any) {
@@ -491,9 +640,17 @@ export default function BillingPage() {
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const finalTotal = total - discount;
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProducts = products
+    .filter(product => product.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const handleImageUpdate = (productId: number, imageFilename: string) => {
+    setProducts(prev => prev.map(product => 
+      product.id === productId 
+        ? { ...product, image_filename: imageFilename }
+        : product
+    ));
+  };
 
   // Role-based access control
   if (!user) {
@@ -546,14 +703,48 @@ export default function BillingPage() {
           padding: '24px',
           borderRadius: '12px',
           marginBottom: '24px',
-          textAlign: 'center'
+          position: 'relative'
         }}>
-          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700 }}>
-            💰 Billing System
-          </h1>
-          <p style={{ margin: '8px 0 0 0', opacity: 0.9 }}>
-            Create bills and process sales for SD Bandara Trading
-          </p>
+          <div style={{ textAlign: 'center' }}>
+            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700 }}>
+              💰 Advanced Billing System
+            </h1>
+            <p style={{ margin: '8px 0 0 0', opacity: 0.9 }}>
+              Create bills and process sales for SD Bandara Trading
+            </p>
+          </div>
+          
+          {/* Customization Button */}
+          <button
+            onClick={() => setShowCustomization(true)}
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              background: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              border: '2px solid rgba(255,255,255,0.3)',
+              borderRadius: '8px',
+              padding: '8px 16px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            🎨 Customize
+          </button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '24px' }}>
@@ -562,7 +753,7 @@ export default function BillingPage() {
             <div style={{ marginBottom: '16px' }}>
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder="🔍 Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -570,7 +761,8 @@ export default function BillingPage() {
                   padding: '12px 16px',
                   border: '1px solid #ddd',
                   borderRadius: '8px',
-                  fontSize: '16px'
+                  fontSize: '16px',
+                  background: '#f8f9fa'
                 }}
               />
             </div>
@@ -583,11 +775,32 @@ export default function BillingPage() {
               maxHeight: '600px',
               overflow: 'auto'
             }}>
-              <h3 style={{ margin: '0 0 16px 0', color: '#333' }}>
-                Products ({filteredProducts.length})
-              </h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {Array.isArray(products) && products.map(product => (
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: '16px'
+              }}>
+                <h3 style={{ margin: 0, color: '#333' }}>
+                  🛍️ Products ({filteredProducts.length})
+                </h3>
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#666',
+                  background: '#f0f0f0',
+                  padding: '4px 8px',
+                  borderRadius: '4px'
+                }}>
+                  {filteredProducts.filter(p => p.image_filename).length} with images
+                </div>
+              </div>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', 
+                gap: '12px',
+                padding: '8px'
+              }}>
+                {Array.isArray(filteredProducts) && filteredProducts.map(product => (
                   <ProductButton key={product.id} product={product} onAdd={addToCart} />
                 ))}
               </div>
@@ -600,17 +813,55 @@ export default function BillingPage() {
             borderRadius: '12px',
             padding: '20px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            height: 'fit-content'
+            height: 'fit-content',
+            position: 'sticky',
+            top: '20px'
           }}>
-            <h3 style={{ margin: '0 0 16px 0', color: '#333' }}>
-              Bill ({cart.length} items)
-            </h3>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h3 style={{ margin: 0, color: '#333' }}>
+                🛒 Bill ({cart.length} items)
+              </h3>
+              {cart.length > 0 && (
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#666',
+                  background: '#f0f0f0',
+                  padding: '4px 8px',
+                  borderRadius: '4px'
+                }}>
+                  Total: Rs.{finalTotal.toFixed(2)}
+                </div>
+              )}
+            </div>
 
             {cart.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#666', padding: '40px 20px' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🛒</div>
-                <p>No items in cart</p>
-                <p style={{ fontSize: '14px' }}>Select products to start billing</p>
+              <div style={{ 
+                textAlign: 'center', 
+                color: '#666', 
+                padding: '60px 20px',
+                background: 'linear-gradient(135deg, #f8f9fa, #e9ecef)',
+                borderRadius: '12px',
+                border: '2px dashed #dee2e6'
+              }}>
+                <div style={{ fontSize: '64px', marginBottom: '20px' }}>🛒</div>
+                <h4 style={{ margin: '0 0 8px 0', color: '#495057', fontSize: '18px' }}>
+                  Cart is Empty
+                </h4>
+                <p style={{ margin: 0, fontSize: '14px', color: '#6c757d' }}>
+                  Select products from the left to start billing
+                </p>
+                <div style={{ 
+                  marginTop: '16px',
+                  fontSize: '12px',
+                  color: '#adb5bd'
+                }}>
+                  💡 Tip: Use the 🎨 Customize button to add product images
+                </div>
               </div>
             ) : (
               <>
@@ -716,6 +967,13 @@ export default function BillingPage() {
           payment={payment}
           total={finalTotal}
           transactionId={transactionId}
+        />
+
+        <ProductCustomizationModal
+          show={showCustomization}
+          onClose={() => setShowCustomization(false)}
+          products={products}
+          onImageUpdate={handleImageUpdate}
         />
       </div>
     </DashboardLayout>

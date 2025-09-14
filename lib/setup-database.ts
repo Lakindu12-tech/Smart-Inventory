@@ -35,6 +35,7 @@ export async function setupDatabase() {
         price DECIMAL(10,2) DEFAULT NULL,
         stock INT DEFAULT 0,
         category VARCHAR(100) DEFAULT 'General',
+        image_filename VARCHAR(255) DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);

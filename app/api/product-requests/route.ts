@@ -49,18 +49,20 @@ export async function GET(req: NextRequest) {
       filters.push('pr.requester_id = ?');
       params.push(decoded.userId);
     }
-    if (searchParams.get('status')) {
+    const status = (searchParams.get('status') || '').toLowerCase();
+    if (['pending','approved','rejected'].includes(status)) {
       filters.push('pr.status = ?');
-      params.push(searchParams.get('status'));
+      params.push(status);
     }
-    if (searchParams.get('type')) {
+    const type = (searchParams.get('type') || '').toLowerCase();
+    if (['add','price','stock'].includes(type)) {
       filters.push('pr.type = ?');
-      params.push(searchParams.get('type'));
+      params.push(type);
     }
     if (filters.length > 0) {
       sql += ' WHERE ' + filters.join(' AND ');
     }
-    sql += ' ORDER BY pr.created_at DESC';
+    sql += ' ORDER BY COALESCE(pr.updated_at, pr.created_at) DESC';
     const requests = await query(sql, params) as any[];
     return NextResponse.json(requests);
   } catch (error: any) {
