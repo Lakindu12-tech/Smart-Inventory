@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import Toast from '../../components/Toast';
 import DashboardLayout from '../../components/DashboardLayout';
 import { 
   SalesTrendChart, 
@@ -41,6 +42,9 @@ export default function ReportsPage() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
   const [activeTab, setActiveTab] = useState('overview');
   const [refreshing, setRefreshing] = useState(false);
@@ -85,6 +89,9 @@ export default function ReportsPage() {
       const data = await response.json();
       setAnalyticsData(data);
     } catch (error: any) {
+      setToastMsg(error.message);
+      setToastType('error');
+      setShowToast(true);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -115,6 +122,7 @@ export default function ReportsPage() {
   };
 
   // Role-based access control
+
   if (!user) {
     return (
       <DashboardLayout userRole="user" userName="User">
@@ -125,6 +133,45 @@ export default function ReportsPage() {
     );
   }
 
+  // Cashier: show only own sales, product stock/price
+  if (user.role === 'cashier') {
+    return (
+      <DashboardLayout userRole={user.role} userName={user.name}>
+        <div style={{ padding: '20px', background: '#f8f9fa', minHeight: '100vh' }}>
+          <h1 style={{ color: '#333', fontSize: '28px', fontWeight: 700, marginBottom: '16px' }}>
+            🧾 My Sales & Product Info
+          </h1>
+          <div style={{ marginBottom: '30px' }}>
+            <KPIGrid kpis={createSalesKPIs({ ...analyticsData, dailySales: analyticsData?.dailySales?.filter(s => s.cashier_id === user.id) })} />
+          </div>
+          <div style={{ marginBottom: '30px' }}>
+            <AdvancedDataGrid
+              data={analyticsData?.dailySales?.filter(s => s.cashier_id === user.id) || []}
+              columns={salesColumns}
+              title="My Sales Report"
+              height={400}
+            />
+          </div>
+          <div style={{ marginBottom: '30px' }}>
+            <AdvancedDataGrid
+              data={analyticsData?.productPerformance || []}
+              columns={productColumns}
+              title="Product Stock & Price"
+              height={400}
+            />
+          </div>
+        </div>
+        <Toast
+          message={toastMsg}
+          type={toastType}
+          onClose={() => { setShowToast(false); setToastMsg(''); }}
+          duration={10000}
+        />
+      </DashboardLayout>
+    );
+  }
+
+  // Storekeeper and owner: full analytics
   if (user.role !== 'owner' && user.role !== 'storekeeper') {
     return (
       <DashboardLayout userRole={user.role} userName={user.name}>
@@ -172,6 +219,12 @@ export default function ReportsPage() {
             Retry
           </button>
         </div>
+        <Toast
+          message={toastMsg}
+          type={toastType}
+          onClose={() => { setShowToast(false); setToastMsg(''); }}
+          duration={10000}
+        />
       </DashboardLayout>
     );
   }

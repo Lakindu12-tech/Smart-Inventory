@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Toast from "./components/Toast";
 import Image from "next/image";
 
 export default function LoginPage() {
@@ -8,12 +9,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleUsername = (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
       setError("Please enter your username/email");
+      setShowToast(true);
       return;
     }
     setError("");
@@ -37,12 +40,13 @@ export default function LoginPage() {
       } catch (e) {
         console.error('Error parsing login response:', e);
       }
-      if (!res.ok) throw new Error(data.message || "Login failed");
+  if (!res.ok) throw new Error((data as any).message || "Login failed");
       // Store token and redirect to dashboard
-      localStorage.setItem('token', data.token);
+  localStorage.setItem('token', (data as any).token);
       window.location.href = "/dashboard";
     } catch (err: any) {
       setError(err.message);
+      setShowToast(true);
     } finally {
       setLoading(false);
     }
@@ -85,7 +89,7 @@ export default function LoginPage() {
               style={{ width: '100%', maxWidth: 260, margin: 0, display: 'block' }}
               autoComplete="username"
             />
-            {error && <div className="error">❌ {error}</div>}
+            {/* ...existing code... */}
             <button type="submit" style={{ width: '100%', maxWidth: 260, marginTop: 8 }}>
               Next &rarr;
             </button>
@@ -125,11 +129,11 @@ export default function LoginPage() {
                 {showPassword ? '🙈' : '👁️'}
               </button>
             </div>
-            {error && <div className="error">❌ {error}</div>}
+            {/* ...existing code... */}
             <button type="submit" style={{ width: '100%', maxWidth: 260, marginTop: 8 }} disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
             </button>
-            <button type="button" style={{ width: '100%', maxWidth: 260, marginTop: 10, background: 'var(--danger-red)' }} onClick={() => { setStep('username'); setPassword(''); setError(''); }}>
+            <button type="button" style={{ width: '100%', maxWidth: 260, marginTop: 10, background: 'var(--danger-red)' }} onClick={() => { setStep('username'); setPassword(''); setError(''); setShowToast(false); }}>
               &larr; Back
             </button>
           </form>
@@ -138,6 +142,13 @@ export default function LoginPage() {
       <div style={{ marginTop: 32, color: '#aaa', fontSize: 13 }}>
         &copy; {new Date().getFullYear()} SD Bandara Trading
       </div>
+    {/* Toast notification for errors */}
+    <Toast
+      message={error}
+      type="error"
+      onClose={() => setShowToast(false)}
+      duration={3000}
+    />
     </div>
   );
 } 

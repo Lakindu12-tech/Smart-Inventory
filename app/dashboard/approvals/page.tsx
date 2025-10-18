@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import Toast from '../../components/Toast';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/DashboardLayout';
 
@@ -22,7 +23,7 @@ interface ProductRequest {
   created_at: string;
   updated_at?: string;
   requester_name: string;
-  request_type: 'product_request'; // To distinguish from stock movements
+  request_type: 'product_request';
 }
 
 interface StockMovement {
@@ -39,38 +40,35 @@ interface StockMovement {
   approved_by_name?: string;
   created_at: string;
   updated_at?: string;
-  request_type: 'stock_movement'; // To distinguish from product requests
+  request_type: 'stock_movement';
 }
 
 type ApprovalItem = ProductRequest | StockMovement;
 
 export default function ApprovalsPage() {
   const [user, setUser] = useState<User | null>(null);
+  const [filters, setFilters] = useState({ status: 'all', type: 'all', date: '' });
   const [requests, setRequests] = useState<ProductRequest[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [allItems, setAllItems] = useState<ApprovalItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<ApprovalItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    status: 'all',
-    type: 'all',
-    date: ''
-  });
   const [selectedItem, setSelectedItem] = useState<ApprovalItem | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject'>('approve');
   const [comment, setComment] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const router = useRouter();
 
-  // User authentication and role check
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/');
       return;
     }
-    
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const userData = {
@@ -79,11 +77,13 @@ export default function ApprovalsPage() {
         role: payload.role
       };
       setUser(userData);
-      
-      // Only owners can access approvals page
       if (userData.role !== 'owner') {
-        alert('Access denied. Owner only.');
-        router.push('/dashboard');
+        setToastMsg('Access denied. Owner only.');
+        setToastType('error');
+        setShowToast(true);
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1200);
         return;
       }
     } catch (error) {
@@ -93,77 +93,42 @@ export default function ApprovalsPage() {
     }
   }, [router]);
 
-  // Handle URL parameters for automatic filtering
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const status = urlParams.get('status');
-      
-      if (status) {
-        setFilters(prev => ({ ...prev, status }));
-      }
-    }
-  }, []);
-
   useEffect(() => {
     if (user && user.role === 'owner') {
       fetchRequests();
     }
-  }, [user]);
+  }, [user, filters.status]);
 
   useEffect(() => {
     filterRequests();
   }, [allItems, filters]);
 
-  // Refetch when status filter changes to leverage backend filtering (DB-accurate)
-  useEffect(() => {
-    if (user && user.role === 'owner') {
-      fetchRequests();
-    }
-  }, [filters.status]);
-
   const fetchRequests = async () => {
     try {
       const token = localStorage.getItem('token');
-      // Fetch product requests
       const prParams = new URLSearchParams();
       if (filters.status !== 'all') prParams.append('status', filters.status);
       const requestsResponse = await fetch(`/api/product-requests?${prParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!requestsResponse.ok) {
-        throw new Error('Failed to fetch product requests');
-      }
+      if (!requestsResponse.ok) throw new Error('Failed to fetch product requests');
       const requestsData = await requestsResponse.json();
-      const productRequests = Array.isArray(requestsData) ? requestsData.map((req: any) => ({
-        ...req,
-        request_type: 'product_request' as const
-      })) : [];
+      const productRequests = Array.isArray(requestsData) ? requestsData.map((req: any) => ({ ...req, request_type: 'product_request' as const })) : [];
       setRequests(productRequests);
 
-      // Fetch stock movements
       const smParams = new URLSearchParams();
       smParams.append('movements', 'true');
       if (filters.status !== 'all') smParams.append('status', filters.status);
       const stockMovementsResponse = await fetch(`/api/stock?${smParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!stockMovementsResponse.ok) {
-        throw new Error('Failed to fetch stock movements');
-      }
+      if (!stockMovementsResponse.ok) throw new Error('Failed to fetch stock movements');
       const stockMovementsData = await stockMovementsResponse.json();
-      const movements = Array.isArray(stockMovementsData.movements) ? stockMovementsData.movements.map((movement: any) => ({
-        ...movement,
-        request_type: 'stock_movement' as const,
-        type: movement.movement_type, // Map movement_type to type for consistency
-        requester_name: movement.performed_by_name // Map performed_by_name to requester_name
-      })) : [];
+      const movements = Array.isArray(stockMovementsData.movements) ? stockMovementsData.movements.map((movement: any) => ({ ...movement, request_type: 'stock_movement' as const, type: movement.movement_type, requester_name: movement.performed_by_name })) : [];
       setStockMovements(movements);
 
-      // Combine both types of requests
       const combinedItems = [...productRequests, ...movements];
       setAllItems(combinedItems);
-
     } catch (error) {
       console.error('Error fetching requests:', error);
     } finally {
@@ -204,52 +169,43 @@ export default function ApprovalsPage() {
 
   const handleAction = async () => {
     if (!selectedItem) return;
-    
     setProcessing(true);
     try {
       const token = localStorage.getItem('token');
-      
       let response;
       if (actionType === 'reject' && !comment.trim()) {
         throw new Error('Please enter a comment to reject');
       }
-
       if (selectedItem.request_type === 'product_request') {
-        // Handle product request approval/rejection
         response = await fetch(`/api/product-requests/${selectedItem.id}/${actionType}`, {
           method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ comment })
         });
       } else if (selectedItem.request_type === 'stock_movement') {
-        // Handle stock movement approval/rejection
         response = await fetch(`/api/stock/${selectedItem.id}/${actionType}`, {
           method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ comment })
         });
       } else {
         throw new Error('Unknown request type');
       }
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || `Failed to ${actionType} request`);
       }
-
-      alert(`Request ${actionType}d successfully!`);
+      setToastMsg(`Request ${actionType}d successfully!`);
+      setToastType('success');
+      setShowToast(true);
       setShowActionModal(false);
       setSelectedItem(null);
       setComment('');
-      fetchRequests(); // Refresh data
+      fetchRequests();
     } catch (error: any) {
-      alert(`Error ${actionType}ing request: ${error.message}`);
+      setToastMsg(`Error ${actionType}ing request: ${error.message}`);
+      setToastType('error');
+      setShowToast(true);
     } finally {
       setProcessing(false);
     }
@@ -285,24 +241,27 @@ export default function ApprovalsPage() {
     }
   };
 
-  // Add a logout function
   const handleLogout = () => {
     localStorage.removeItem('token');
     window.location.href = '/';
   };
 
-  // Role-based access control
   if (!user) {
     return (
       <DashboardLayout userRole="user" userName="User">
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <div style={{ fontSize: '1.2rem', color: '#666' }}>Loading...</div>
         </div>
+        <Toast
+          message={toastMsg}
+          type={toastType}
+          onClose={() => { setShowToast(false); setToastMsg(''); }}
+          duration={10000}
+        />
       </DashboardLayout>
     );
   }
 
-  // Only owners can access this page
   if (user.role !== 'owner') {
     return (
       <DashboardLayout userRole={user.role} userName={user.name}>
@@ -345,109 +304,14 @@ export default function ApprovalsPage() {
   return (
     <DashboardLayout userRole={user.role} userName={user.name}>
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
           <h1 style={{ margin: 0, color: '#333', marginBottom: '1rem' }}>All Request Approvals</h1>
           <p style={{ margin: 0, color: '#666' }}>
             Review and manage all product, price, and stock requests from storekeepers
           </p>
         </div>
-
-        {/* Filters */}
-        <div style={{
-          background: '#fff',
-          padding: '1.5rem',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          marginBottom: '2rem',
-          display: 'flex',
-          gap: '1.5rem',
-          alignItems: 'center',
-          flexWrap: 'wrap'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 180 }}>
-            <label style={{ fontWeight: 500, fontSize: '0.9rem', margin: 0 }}>Status</label>
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters({...filters, status: e.target.value})}
-              style={{
-                width: 110,
-                padding: '0.5rem',
-                border: '1.5px solid #e0e0e0',
-                borderRadius: '6px',
-                fontSize: '0.9rem',
-                margin: 0
-              }}
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 180 }}>
-            <label style={{ fontWeight: 500, fontSize: '0.9rem', margin: 0 }}>Type</label>
-            <select
-              value={filters.type}
-              onChange={(e) => setFilters({...filters, type: e.target.value})}
-              style={{
-                width: 130,
-                padding: '0.5rem',
-                border: '1.5px solid #e0e0e0',
-                borderRadius: '6px',
-                fontSize: '0.9rem',
-                margin: 0
-              }}
-            >
-              <option value="all">All Types</option>
-              <option value="add">Add Product</option>
-              <option value="price">Price Change</option>
-              <option value="stock">Stock Change</option>
-              <option value="in">Stock In</option>
-              <option value="out">Stock Out</option>
-              <option value="adjustment">Stock Adjustment</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 180 }}>
-            <label style={{ fontWeight: 500, fontSize: '0.9rem', margin: 0 }}>Date</label>
-            <input
-              type="date"
-              value={filters.date}
-              onChange={e => setFilters({...filters, date: e.target.value})}
-              style={{
-                width: 140,
-                padding: '0.5rem',
-                border: '1.5px solid #e0e0e0',
-                borderRadius: '6px',
-                fontSize: '0.9rem',
-                margin: 0
-              }}
-            />
-          </div>
-
-          <div style={{ marginLeft: 'auto', fontSize: '0.9rem', color: '#666', minWidth: 180, textAlign: 'right', alignSelf: 'center' }}>
-            Showing {filteredItems.length} of {allItems.length} requests
-          </div>
-        </div>
-
-        {/* Requests Table */}
-        <div style={{
-          background: '#fff',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr',
-            padding: '1rem',
-            background: '#f8f9fa',
-            borderBottom: '1px solid #eee',
-            fontWeight: 600,
-            fontSize: '0.9rem'
-          }}>
+        <div style={{ background: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr', padding: '1rem', background: '#f8f9fa', borderBottom: '1px solid #eee', fontWeight: 600, fontSize: '0.9rem' }}>
             <div>Type</div>
             <div>Details</div>
             <div>Requester</div>
@@ -456,39 +320,27 @@ export default function ApprovalsPage() {
             <div>Reason</div>
             <div>Actions</div>
           </div>
-
           {filteredItems.length === 0 ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
               No requests found matching the filters.
             </div>
           ) : (
-            Array.isArray(filteredItems) && filteredItems.map(item => (
-              <div key={item.id} style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr',
-                padding: '1rem',
-                borderBottom: '1px solid #eee',
-                fontSize: '0.9rem',
-                alignItems: 'center'
-              }}>
+            filteredItems.map(item => (
+              <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr', padding: '1rem', borderBottom: '1px solid #eee', fontSize: '0.9rem', alignItems: 'center' }}>
                 <div style={{ fontWeight: 500 }}>
-                  {getTypeIcon(item.type)} {item.request_type === 'stock_movement' ? item.movement_type : item.type}
+                  {getTypeIcon(item.request_type === 'product_request' ? item.type : item.movement_type)} {item.request_type === 'stock_movement' ? item.movement_type : item.type}
                 </div>
                 <div>
                   {item.request_type === 'product_request' ? (
-                    item.type === 'add' ? item.product_name :
-                    item.type === 'price' ? `Rs.${item.requested_price}` :
-                    `${item.requested_quantity > 0 ? '+' : ''}${item.requested_quantity}`
+                     item.type === 'add' ? item.product_name :
+                     item.type === 'price' ? `Rs.${item.requested_price}` :
+                     item.requested_quantity !== undefined ? `${item.requested_quantity > 0 ? '+' : ''}${item.requested_quantity}` : ''
                   ) : (
-                    // Stock movement display
                     `${item.movement_type === 'in' ? '+' : '-'}${item.quantity} units - ${item.product_name}`
                   )}
                 </div>
                 <div>{item.request_type === 'product_request' ? item.requester_name : item.performed_by_name}</div>
-                <div style={{ 
-                  color: getStatusColor(item.status),
-                  fontWeight: 600
-                }}>
+                <div style={{ color: getStatusColor(item.status), fontWeight: 600 }}>
                   {getStatusIcon(item.status)} {item.status}
                 </div>
                 <div>
@@ -501,40 +353,14 @@ export default function ApprovalsPage() {
                   {item.status === 'pending' && (
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button
-                        onClick={() => {
-                          setSelectedItem(item);
-                          setActionType('approve');
-                          setShowActionModal(true);
-                        }}
-                        style={{
-                          background: '#1ecb4f',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '4px',
-                          padding: '0.3rem 0.6rem',
-                          cursor: 'pointer',
-                          fontSize: '0.8rem',
-                          fontWeight: 500
-                        }}
+                        onClick={() => { setSelectedItem(item); setActionType('approve'); setShowActionModal(true); }}
+                        style={{ background: '#1ecb4f', color: '#fff', border: 'none', borderRadius: '4px', padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}
                       >
                         ✅ Approve
                       </button>
                       <button
-                        onClick={() => {
-                          setSelectedItem(item);
-                          setActionType('reject');
-                          setShowActionModal(true);
-                        }}
-                        style={{
-                          background: '#ff3b3b',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '4px',
-                          padding: '0.3rem 0.6rem',
-                          cursor: 'pointer',
-                          fontSize: '0.8rem',
-                          fontWeight: 500
-                        }}
+                        onClick={() => { setSelectedItem(item); setActionType('reject'); setShowActionModal(true); }}
+                        style={{ background: '#ff3b3b', color: '#fff', border: 'none', borderRadius: '4px', padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}
                       >
                         ❌ Reject
                       </button>
@@ -542,7 +368,7 @@ export default function ApprovalsPage() {
                   )}
                   {item.status !== 'pending' && (
                     <span style={{ fontSize: '0.8rem', color: '#666' }}>
-                      {item.owner_comment || '-'}
+                       {item.request_type === 'product_request' ? (item.owner_comment || '-') : '-'}
                     </span>
                   )}
                 </div>
@@ -550,127 +376,74 @@ export default function ApprovalsPage() {
             ))
           )}
         </div>
-
-        {/* Action Modal */}
-        {showActionModal && selectedItem && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000
-          }}>
-            <div style={{
-              background: '#fff',
-              padding: '2rem',
-              borderRadius: '12px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-              maxWidth: '500px',
-              width: '90%'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '1.5rem'
-              }}>
-                <h3 style={{ margin: 0, color: '#333' }}>
-                  {actionType === 'approve' ? '✅ Approve Request' : '❌ Reject Request'}
-                </h3>
-                <button
-                  onClick={() => setShowActionModal(false)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '1.5rem',
-                    cursor: 'pointer',
-                    color: '#666'
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <strong>Request Details:</strong>
-                <div style={{ marginTop: '0.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
-                  <div><strong>Type:</strong> {selectedItem.request_type === 'stock_movement' ? selectedItem.movement_type : selectedItem.type}</div>
-                  <div><strong>Details:</strong> {
-                    selectedItem.request_type === 'product_request' ? (
-                      selectedItem.type === 'add' ? selectedItem.product_name :
-                      selectedItem.type === 'price' ? `Rs.${selectedItem.requested_price}` :
-                      `${selectedItem.requested_quantity} units`
-                    ) : (
-                      `${selectedItem.movement_type === 'in' ? '+' : '-'}${selectedItem.quantity} units - ${selectedItem.product_name}`
-                    )
-                  }</div>
-                  <div><strong>Requester:</strong> {selectedItem.request_type === 'product_request' ? selectedItem.requester_name : selectedItem.performed_by_name}</div>
-                  <div><strong>Reason:</strong> {selectedItem.reason || 'None provided'}</div>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                  {actionType === 'reject' ? 'Comment (Required for rejection)' : 'Comment (Optional)'}
-                </label>
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.8rem',
-                    border: '1.5px solid #e0e0e0',
-                    borderRadius: '8px',
-                    fontSize: '1rem',
-                    minHeight: '80px',
-                    resize: 'vertical'
-                  }}
-                  placeholder={`Enter comment for ${actionType}...`}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button
-                  onClick={handleAction}
-                  disabled={processing || (actionType === 'reject' && !comment.trim())}
-                  style={{
-                    background: actionType === 'approve' ? '#1ecb4f' : '#ff3b3b',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '0.8rem 1.5rem',
-                    cursor: processing ? 'not-allowed' : 'pointer',
-                    fontWeight: 600,
-                    flex: 1,
-                    opacity: processing ? 0.7 : 1
-                  }}
-                >
-                  {processing ? 'Processing...' : actionType === 'approve' ? 'Approve Request' : 'Reject Request'}
-                </button>
-                <button
-                  onClick={() => setShowActionModal(false)}
-                  style={{
-                    background: '#666',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '0.8rem 1.5rem',
-                    cursor: 'pointer',
-                    fontWeight: 600
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+        {showToast && (
+          <Toast
+            message={toastMsg}
+            type={toastType}
+            onClose={() => { setShowToast(false); setToastMsg(''); }}
+            duration={10000}
+          />
         )}
       </div>
+      {showActionModal && selectedItem && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', padding: '2rem', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', maxWidth: '500px', width: '90%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, color: '#333' }}>
+                {actionType === 'approve' ? '✅ Approve Request' : '❌ Reject Request'}
+              </h3>
+              <button
+                onClick={() => setShowActionModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#666' }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <strong>Request Details:</strong>
+              <div style={{ marginTop: '0.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
+                <div><strong>Type:</strong> {selectedItem?.request_type === 'stock_movement' ? (selectedItem as StockMovement)?.movement_type : (selectedItem as ProductRequest)?.type}</div>
+                <div><strong>Details:</strong> {selectedItem?.request_type === 'product_request'
+                  ? ((selectedItem as ProductRequest)?.type === 'add'
+                      ? (selectedItem as ProductRequest)?.product_name
+                      : (selectedItem as ProductRequest)?.type === 'price'
+                        ? `Rs.${(selectedItem as ProductRequest)?.requested_price}`
+                        : `${(selectedItem as ProductRequest)?.requested_quantity} units`)
+                  : `${(selectedItem as StockMovement)?.movement_type === 'in' ? '+' : '-'}${(selectedItem as StockMovement)?.quantity} units - ${(selectedItem as StockMovement)?.product_name}`}
+                </div>
+                <div><strong>Requester:</strong> {selectedItem?.request_type === 'product_request' ? (selectedItem as ProductRequest)?.requester_name : (selectedItem as StockMovement)?.performed_by_name}</div>
+                <div><strong>Reason:</strong> {selectedItem?.reason || 'None provided'}</div>
+              </div>
+            </div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                {actionType === 'reject' ? 'Comment (Required for rejection)' : 'Comment (Optional)'}
+              </label>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                style={{ width: '100%', padding: '0.8rem', border: '1.5px solid #e0e0e0', borderRadius: '8px', fontSize: '1rem', minHeight: '80px', resize: 'vertical' }}
+                placeholder={`Enter comment for ${actionType}...`}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                onClick={handleAction}
+                disabled={processing || (actionType === 'reject' && !comment.trim())}
+                style={{ background: actionType === 'approve' ? '#1ecb4f' : '#ff3b3b', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.8rem 1.5rem', cursor: processing ? 'not-allowed' : 'pointer', fontWeight: 600, flex: 1, opacity: processing ? 0.7 : 1 }}
+              >
+                {processing ? 'Processing...' : actionType === 'approve' ? 'Approve Request' : 'Reject Request'}
+              </button>
+              <button
+                onClick={() => setShowActionModal(false)}
+                style={{ background: '#666', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.8rem 1.5rem', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
-} 
+}

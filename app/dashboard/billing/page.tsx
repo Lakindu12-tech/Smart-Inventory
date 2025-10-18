@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import Toast from '../../components/Toast';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/DashboardLayout';
 import ProductCustomizationModal from '../../components/ProductCustomizationModal';
@@ -29,7 +30,7 @@ interface User {
 }
 
 // Advanced Product Button Component with Images
-const ProductButton = ({ product, onAdd }: { product: Product; onAdd: (product: Product) => void }) => {
+const ProductButton = ({ product, onAdd }: { product: Product; onAdd: (product: Product & { qty: number }) => void }) => {
   const [showModal, setShowModal] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
@@ -100,7 +101,7 @@ const ProductButton = ({ product, onAdd }: { product: Product; onAdd: (product: 
               }}
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling!.style.display = 'flex';
+                (e.currentTarget.nextElementSibling as HTMLElement)!.style.display = 'flex';
               }}
             />
           ) : null}
@@ -211,11 +212,12 @@ const ProductButton = ({ product, onAdd }: { product: Product; onAdd: (product: 
                 value={quantity}
                 onChange={(e) => setQuantity(Number(e.target.value))}
                 style={{
-                  width: '100%',
+                  width: '180px',
                   padding: '8px 12px',
                   border: '1px solid #ddd',
                   borderRadius: '6px',
-                  fontSize: '16px'
+                  fontSize: '16px',
+                  boxSizing: 'border-box'
                 }}
               />
               <small style={{ color: '#666', fontSize: '12px' }}>
@@ -238,13 +240,16 @@ const ProductButton = ({ product, onAdd }: { product: Product; onAdd: (product: 
                </button>
               <button 
                 onClick={handleAdd}
+                disabled={quantity > product.current_stock || quantity < 0.1}
                 style={{
-                  background: '#1ecb4f',
+                  background: quantity > product.current_stock || quantity < 0.1 ? '#ff3b3b' : '#1ecb4f',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
                   padding: '8px 16px',
-                  cursor: 'pointer'
+                  cursor: quantity > product.current_stock || quantity < 0.1 ? 'not-allowed' : 'pointer',
+                  opacity: quantity > product.current_stock || quantity < 0.1 ? 0.8 : 1,
+                  transition: 'background 0.2s'
                 }}
               >
                 Add to Bill
@@ -300,7 +305,7 @@ const CartItem = ({ item, onUpdateQty, onRemove }: {
             }}
             onError={(e) => {
               e.currentTarget.style.display = 'none';
-              e.currentTarget.nextElementSibling!.style.display = 'flex';
+              (e.currentTarget.nextElementSibling as HTMLElement)!.style.display = 'flex';
             }}
           />
         ) : null}
@@ -322,20 +327,6 @@ const CartItem = ({ item, onUpdateQty, onRemove }: {
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button 
-            onClick={() => onUpdateQty(item.id, Math.max(0.1, item.qty - 0.1))}
-            style={{
-              background: '#f0f0f0',
-              color: '#333',
-              border: 'none',
-              borderRadius: '4px',
-              width: '28px',
-              height: '28px',
-              cursor: 'pointer'
-            }}
-          >
-            -
-          </button>
         <input
           type="number"
           step="0.1"
@@ -352,21 +343,7 @@ const CartItem = ({ item, onUpdateQty, onRemove }: {
           }}
         />
         <span style={{ fontSize: '12px', color: '#666' }}>kg</span>
-                  <button 
-            onClick={() => onUpdateQty(item.id, Math.min(item.stock, item.qty + 0.1))}
-            style={{
-              background: '#f0f0f0',
-              color: '#333',
-              border: 'none',
-              borderRadius: '4px',
-              width: '28px',
-              height: '28px',
-              cursor: 'pointer'
-            }}
-          >
-            +
-          </button>
-        <div style={{ textAlign: 'right', minWidth: '80px' }}>
+        <div style={{ textAlign: 'right', minWidth: '80px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
           <div style={{ fontWeight: 600 }}>Rs.{total.toFixed(2)}</div>
           <button 
             onClick={() => onRemove(item.id)}
@@ -374,13 +351,22 @@ const CartItem = ({ item, onUpdateQty, onRemove }: {
               background: '#ff3b3b',
               color: 'white',
               border: 'none',
-              borderRadius: '4px',
-              padding: '2px 6px',
-              fontSize: '12px',
-              cursor: 'pointer'
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+              marginTop: '4px',
+              transition: 'background 0.2s'
             }}
+            title="Remove this item from cart"
           >
-            Remove
+            &#10006;
           </button>
         </div>
       </div>
@@ -495,6 +481,7 @@ const ReceiptModal = ({
 };
 
 export default function BillingPage() {
+  const [cashGiven, setCashGiven] = useState<number | ''>('');
   const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -504,6 +491,9 @@ export default function BillingPage() {
   const [showCustomization, setShowCustomization] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const [transactionId, setTransactionId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
@@ -526,7 +516,9 @@ export default function BillingPage() {
       
       // Only cashiers and owners can access billing
       if (userData.role !== 'cashier' && userData.role !== 'owner') {
-        alert('Access denied. Only cashiers and owners can access billing.');
+        setToastMsg('Access denied. Only cashiers and owners can access billing.');
+        setToastType('error');
+        setShowToast(true);
         router.push('/dashboard');
         return;
       }
@@ -553,7 +545,8 @@ export default function BillingPage() {
     window.location.href = '/';
   };
 
-  const addToCart = (product: Product) => {
+  // Accepts a product with qty property
+  const addToCart = (product: Product & { qty: number }) => {
     const existingItem = cart.find(item => item.id === product.id);
     if (existingItem) {
       setCart(prev => prev.map(item => 
@@ -585,7 +578,9 @@ export default function BillingPage() {
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
-      setError('Cart is empty');
+  setToastMsg('Cart is empty');
+  setToastType('error');
+  setShowToast(true);
       return;
     }
 
@@ -631,7 +626,9 @@ export default function BillingPage() {
           setProducts(sortedProducts);
         });
     } catch (error: any) {
-      setError(error.message);
+  setToastMsg(error.message);
+  setToastType('error');
+  setShowToast(true);
     } finally {
       setLoading(false);
     }
@@ -909,7 +906,10 @@ export default function BillingPage() {
                     </label>
                     <select
                       value={payment}
-                      onChange={(e) => setPayment(e.target.value)}
+                      onChange={(e) => {
+                        setPayment(e.target.value);
+                        if (e.target.value !== 'cash') setCashGiven('');
+                      }}
                       style={{
                         width: '100%',
                         padding: '8px 12px',
@@ -923,6 +923,33 @@ export default function BillingPage() {
                       <option value="mobile">Mobile Payment</option>
                     </select>
                   </div>
+                  {payment === 'cash' && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+                        Amount Received:
+                      </label>
+                      <input
+                        type="number"
+                        min={finalTotal}
+                        value={cashGiven}
+                        onChange={e => setCashGiven(e.target.value === '' ? '' : Number(e.target.value))}
+                        style={{
+                          width: '100%',
+                          maxWidth: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '6px',
+                          fontSize: '16px',
+                          marginBottom: '8px',
+                          boxSizing: 'border-box'
+                        }}
+                        placeholder={`Enter amount received (>= Rs.${finalTotal.toFixed(2)})`}
+                      />
+                      <div style={{ fontWeight: 600, color: cashGiven !== '' && cashGiven < finalTotal ? '#ff3b3b' : '#333', fontSize: '16px' }}>
+                        Balance: Rs.{cashGiven !== '' && cashGiven >= finalTotal ? (cashGiven - finalTotal).toFixed(2) : '0.00'}
+                      </div>
+                    </div>
+                  )}
 
                   <button
                     onClick={handleCheckout}
@@ -947,18 +974,13 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {error && (
-          <div style={{
-            background: '#ff3b3b',
-            color: 'white',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            marginTop: '16px',
-            textAlign: 'center'
-          }}>
-            ❌ {error}
-          </div>
-        )}
+        {/* Toast notification for all user messages */}
+        <Toast
+          message={toastMsg}
+          type={toastType}
+          onClose={() => { setShowToast(false); setToastMsg(''); }}
+          duration={10000}
+        />
 
         <ReceiptModal
           show={showReceipt}

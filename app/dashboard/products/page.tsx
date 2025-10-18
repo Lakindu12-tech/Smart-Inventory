@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import Toast from '../../components/Toast';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/DashboardLayout';
 
@@ -55,6 +56,9 @@ export default function ProductsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const router = useRouter();
 
   useEffect(() => {
@@ -141,7 +145,9 @@ export default function ProductsPage() {
           p => p.name.trim().toLowerCase() === formData.product_name.trim().toLowerCase()
         );
         if (exists) {
-          alert('A product with this name already exists. Please choose a different name.');
+          setToastMsg('A product with this name already exists. Please choose a different name.');
+          setToastType('error');
+          setShowToast(true);
           setSubmitting(false);
           return;
         }
@@ -164,7 +170,9 @@ export default function ProductsPage() {
       });
 
       if (response.ok) {
-        alert('Product request submitted successfully!');
+        setToastMsg('Product request submitted successfully!');
+        setToastType('success');
+        setShowToast(true);
         setShowRequestForm(false);
         setFormData({
           type: 'add',
@@ -186,10 +194,14 @@ export default function ProductsPage() {
         } catch (e) {
           console.error('Error parsing error response:', e);
         }
-        alert(`Error: ${errorMsg}`);
+        setToastMsg(`Error: ${errorMsg}`);
+        setToastType('error');
+        setShowToast(true);
       }
     } catch (error) {
-      alert('Error submitting product request');
+      setToastMsg('Error submitting product request');
+      setToastType('error');
+      setShowToast(true);
     } finally {
       setSubmitting(false);
     }
@@ -209,7 +221,9 @@ export default function ProductsPage() {
       });
 
       if (response.ok) {
-        alert('Request approved successfully!');
+        setToastMsg('Request approved successfully!');
+        setToastType('success');
+        setShowToast(true);
         fetchData();
       } else {
         let errorMsg = 'Unknown error';
@@ -222,10 +236,14 @@ export default function ProductsPage() {
         } catch (e) {
           console.error('Error parsing error response:', e);
         }
-        alert(`Error approving request: ${errorMsg}`);
+        setToastMsg(`Error approving request: ${errorMsg}`);
+        setToastType('error');
+        setShowToast(true);
       }
     } catch (error) {
-      alert('Error approving request');
+      setToastMsg('Error approving request');
+      setToastType('error');
+      setShowToast(true);
     }
   };
 
@@ -243,7 +261,9 @@ export default function ProductsPage() {
       });
 
       if (response.ok) {
-        alert('Request rejected successfully!');
+        setToastMsg('Request rejected successfully!');
+        setToastType('success');
+        setShowToast(true);
         fetchData();
       } else {
         let errorMsg = 'Unknown error';
@@ -256,10 +276,14 @@ export default function ProductsPage() {
         } catch (e) {
           console.error('Error parsing error response:', e);
         }
-        alert(`Error rejecting request: ${errorMsg}`);
+        setToastMsg(`Error rejecting request: ${errorMsg}`);
+        setToastType('error');
+        setShowToast(true);
       }
     } catch (error) {
-      alert('Error rejecting request');
+      setToastMsg('Error rejecting request');
+      setToastType('error');
+      setShowToast(true);
     }
   };
 
@@ -311,7 +335,9 @@ export default function ProductsPage() {
         })
       });
       if (response.ok) {
-        alert('Price change request submitted successfully!');
+        setToastMsg('Price change request submitted successfully!');
+        setToastType('success');
+        setShowToast(true);
         setShowPriceChangeForm(false);
         setPriceChangeForm({ product_id: '', requested_price: '' });
         fetchData();
@@ -326,10 +352,14 @@ export default function ProductsPage() {
         } catch (e) {
           console.error('Error parsing error response:', e);
         }
-        alert(`Error: ${errorMsg}`);
+        setToastMsg(`Error: ${errorMsg}`);
+        setToastType('error');
+        setShowToast(true);
       }
     } catch (error) {
-      alert('Error submitting price change request');
+      setToastMsg('Error submitting price change request');
+      setToastType('error');
+      setShowToast(true);
     } finally {
       setSubmitting(false);
     }
@@ -353,6 +383,13 @@ export default function ProductsPage() {
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <div style={{ fontSize: '1.2rem', color: '#666' }}>Loading...</div>
         </div>
+        {/* Toast notification for all user messages */}
+        <Toast
+          message={toastMsg}
+          type={toastType}
+          onClose={() => { setShowToast(false); setToastMsg(''); }}
+          duration={10000}
+        />
       </DashboardLayout>
     );
   }
@@ -1019,7 +1056,7 @@ export default function ProductsPage() {
                   <div>
                     {request.type === 'add' ? request.product_name :
                      request.type === 'price' ? `Rs.${request.requested_price}` :
-                     `${request.requested_quantity > 0 ? '+' : ''}${request.requested_quantity}`}
+                     (request.requested_quantity !== undefined ? `${request.requested_quantity > 0 ? '+' : ''}${request.requested_quantity}` : '')}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: '#666' }}>
                     {request.requester_name}

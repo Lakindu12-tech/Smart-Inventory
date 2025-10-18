@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import Toast from '../../components/Toast';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/DashboardLayout';
 
@@ -53,6 +54,9 @@ export default function StockPage() {
   const [stockStatus, setStockStatus] = useState('all');
   const [activeTab, setActiveTab] = useState<'stock' | 'movements' | 'recent'>('stock');
   const [addRequests, setAddRequests] = useState<any[]>([]);
+  const [toastMsg, setToastMsg] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const router = useRouter();
 
   // Filters for Recent Stock Movements
@@ -141,8 +145,8 @@ export default function StockPage() {
       } catch (e) {
         console.error('Error parsing response:', e);
       }
-      setProducts(Array.isArray(data.products) ? data.products : []);
-      setMovements(Array.isArray(data.movements) ? data.movements : []);
+  setProducts(Array.isArray((data as any).products) ? (data as any).products : []);
+  setMovements(Array.isArray((data as any).movements) ? (data as any).movements : []);
 
       // Fetch add product requests (type 'add')
       const reqRes = await fetch('/api/product-requests', {
@@ -192,7 +196,9 @@ export default function StockPage() {
       }
 
       if (response.ok) {
-        alert('Stock movement request submitted successfully!');
+        setToastMsg('Stock movement request submitted successfully!');
+        setToastType('success');
+        setShowToast(true);
         setShowMovementForm(false);
         setFormData({
           product_id: '',
@@ -203,11 +209,15 @@ export default function StockPage() {
         fetchData(); // Refresh data
       } else {
         let errorMsg = 'Unknown error';
-        if (data && data.message) errorMsg = data.message;
-        alert(`Error: ${errorMsg}`);
+  if (data && (data as any).message) errorMsg = (data as any).message;
+        setToastMsg(`Error: ${errorMsg}`);
+        setToastType('error');
+        setShowToast(true);
       }
     } catch (error) {
-      alert('Error submitting stock movement');
+      setToastMsg('Error submitting stock movement');
+      setToastType('error');
+      setShowToast(true);
     } finally {
       setSubmitting(false);
     }
@@ -227,7 +237,9 @@ export default function StockPage() {
       console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (response.ok) {
-        alert('Stock movement approved successfully!');
+        setToastMsg('Stock movement approved successfully!');
+        setToastType('success');
+        setShowToast(true);
         fetchData(); // Refresh data
       } else {
         let errorMsg = 'Unknown error';
@@ -242,11 +254,15 @@ export default function StockPage() {
         } catch (e) {
           console.error('🔍 Error parsing error response:', e);
         }
-        alert(`Error: ${errorMsg}`);
+        setToastMsg(`Error: ${errorMsg}`);
+        setToastType('error');
+        setShowToast(true);
       }
     } catch (error) {
       console.error('🔍 Error in handleApprove:', error);
-      alert('Error approving stock movement');
+      setToastMsg('Error approving stock movement');
+      setToastType('error');
+      setShowToast(true);
     }
   };
 
@@ -260,7 +276,9 @@ export default function StockPage() {
       });
 
       if (response.ok) {
-        alert('Stock movement rejected successfully!');
+        setToastMsg('Stock movement rejected successfully!');
+        setToastType('success');
+        setShowToast(true);
         fetchData(); // Refresh data
       } else {
         let errorMsg = 'Unknown error';
@@ -275,11 +293,15 @@ export default function StockPage() {
         } catch (e) {
           console.error('🔍 Error parsing error response:', e);
         }
-        alert(`Error: ${errorMsg}`);
+        setToastMsg(`Error: ${errorMsg}`);
+        setToastType('error');
+        setShowToast(true);
       }
     } catch (error) {
       console.error('🔍 Error in handleReject:', error);
-      alert('Error rejecting stock movement');
+      setToastMsg('Error rejecting stock movement');
+      setToastType('error');
+      setShowToast(true);
     }
   };
 
@@ -332,7 +354,9 @@ export default function StockPage() {
         p => p.name.trim().toLowerCase() === addProductForm.name.trim().toLowerCase()
       );
       if (exists) {
-        alert('A product with this name already exists. Please choose a different name.');
+        setToastMsg('A product with this name already exists. Please choose a different name.');
+        setToastType('error');
+        setShowToast(true);
         setSubmitting(false);
         return;
       }
@@ -351,7 +375,9 @@ export default function StockPage() {
         })
       });
       if (response.ok) {
-        alert('Add product request submitted successfully!');
+        setToastMsg('Add product request submitted successfully!');
+        setToastType('success');
+        setShowToast(true);
         setShowAddProductForm(false);
         setAddProductForm({ name: '', category: 'Vegetables' });
         fetchData();
@@ -366,10 +392,14 @@ export default function StockPage() {
         } catch (e) {
           console.error('Error parsing error response:', e);
         }
-        alert(`Error: ${errorMsg}`);
+        setToastMsg(`Error: ${errorMsg}`);
+        setToastType('error');
+        setShowToast(true);
       }
     } catch (error) {
-      alert('Error submitting add product request');
+      setToastMsg('Error submitting add product request');
+      setToastType('error');
+      setShowToast(true);
     } finally {
       setSubmitting(false);
     }
@@ -1334,6 +1364,13 @@ export default function StockPage() {
           </div>
         )}
       </div>
+      {/* Toast notification for all user messages */}
+      <Toast
+        message={toastMsg}
+        type={toastType}
+        onClose={() => { setShowToast(false); setToastMsg(''); }}
+        duration={10000}
+      />
     </DashboardLayout>
   );
 } 

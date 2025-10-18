@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     // Top-selling products
     const [topRows] = await connection.execute(
-      `SELECT p.id as productId, p.name, SUM(ti.quantity) as quantity, SUM(ti.price * ti.quantity) as totalSales
+      `SELECT p.id as productId, p.name, SUM(ti.quantity) as quantity, SUM(ti.unit_price * ti.quantity) as totalSales
        FROM transaction_items ti
        JOIN products p ON ti.product_id = p.id
        JOIN transactions t ON ti.transaction_id = t.id
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     // Transaction details
     const [txRows] = await connection.execute(
       `SELECT t.id, t.date, t.total_amount, u.name as cashier,
-              ti.product_id, p.name as product_name, ti.quantity, ti.price
+              ti.product_id, p.name as product_name, ti.quantity, ti.unit_price as price
        FROM transactions t
        LEFT JOIN users u ON t.cashier_id = u.id
        LEFT JOIN transaction_items ti ON t.id = ti.transaction_id

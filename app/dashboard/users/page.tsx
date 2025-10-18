@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import Toast from '../../components/Toast';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/DashboardLayout';
 
@@ -29,6 +30,8 @@ export default function UserManagement() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; user: User | null }>({
     show: false,
     user: null
@@ -56,7 +59,9 @@ export default function UserManagement() {
       
       // Only owners can access user management
       if (userData.role !== 'owner') {
-        alert('Access denied. Owner only.');
+        setError('Access denied. Owner only.');
+        setToastType('error');
+        setShowToast(true);
         router.push('/dashboard');
         return;
       }
@@ -74,7 +79,9 @@ export default function UserManagement() {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        setError('No authentication token found');
+  setError('No authentication token found');
+  setToastType('error');
+  setShowToast(true);
         setLoading(false);
         return;
       }
@@ -92,7 +99,9 @@ export default function UserManagement() {
       setUsers(Array.isArray(data) ? data : []);
     } catch (error: any) {
       console.error('Error fetching users:', error);
-      setError(error.message || 'Failed to fetch users');
+  setError(error.message || 'Failed to fetch users');
+  setToastType('error');
+  setShowToast(true);
     } finally {
       setLoading(false);
     }
@@ -120,12 +129,16 @@ export default function UserManagement() {
         throw new Error(data.message);
       }
 
-      setSuccess(`User created successfully! Default password: 1234`);
+  setSuccess(`User created successfully! Default password: 1234`);
+  setToastType('success');
+  setShowToast(true);
       setFormData({ name: '', email: '', role: 'storekeeper' });
       setShowAddForm(false);
       fetchUsers();
     } catch (error: any) {
-      setError(error.message);
+  setError(error.message);
+  setToastType('error');
+  setShowToast(true);
     }
   };
 
@@ -145,11 +158,15 @@ export default function UserManagement() {
         throw new Error(data.message);
       }
 
-      setSuccess('User deactivated successfully');
+  setSuccess('User deactivated successfully');
+  setToastType('success');
+  setShowToast(true);
       setDeleteConfirm({ show: false, user: null });
       fetchUsers();
     } catch (error: any) {
-      setError(error.message);
+  setError(error.message);
+  setToastType('error');
+  setShowToast(true);
     }
   };
 
@@ -420,28 +437,13 @@ export default function UserManagement() {
         )}
 
         {/* Error/Success Messages */}
-        {error && (
-          <div style={{
-            background: '#ff3b3b',
-            color: '#fff',
-            padding: '1rem',
-            borderRadius: '8px',
-            marginBottom: '1rem'
-          }}>
-            ❌ {error}
-          </div>
-        )}
-        {success && (
-          <div style={{
-            background: '#1ecb4f',
-            color: '#fff',
-            padding: '1rem',
-            borderRadius: '8px',
-            marginBottom: '1rem'
-          }}>
-            ✅ {success}
-          </div>
-        )}
+        {/* Toast notification for error/success messages */}
+        <Toast
+          message={error || success}
+          type={toastType}
+          onClose={() => { setShowToast(false); setError(''); setSuccess(''); }}
+          duration={3000}
+        />
 
         {/* Main Content: Two-column layout */}
         <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>

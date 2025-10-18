@@ -11,8 +11,12 @@ export async function GET(req: NextRequest) {
 
     const token = authHeader.replace('Bearer ', '');
     const decoded = verifyToken(token);
-    
-    if (!decoded || !['owner', 'storekeeper', 'cashier'].includes(decoded.role)) {
+
+    if (!decoded) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!['owner', 'storekeeper', 'cashier'].includes(decoded.role)) {
       return NextResponse.json({ message: 'Access denied.' }, { status: 403 });
     }
 
@@ -42,7 +46,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch sales data
     const transactions = await query(`
-      SELECT t.*, ti.product_id, ti.quantity, ti.price, p.name as product_name
+      SELECT t.*, ti.product_id, ti.quantity, ti.unit_price AS unit_price, p.name as product_name
       FROM transactions t
       LEFT JOIN transaction_items ti ON t.id = ti.transaction_id
       LEFT JOIN products p ON ti.product_id = p.id
