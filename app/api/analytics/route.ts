@@ -30,13 +30,18 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const period = url.searchParams.get('period') || '30d';
 
-    const { start, end } = periodToDates(period);
-    const startStr = start.toISOString();
-    const endStr = end.toISOString();
+    // Calculate days for the period
+    let days = 30;
+    switch (period) {
+      case '7d': days = 7; break;
+      case '30d': days = 30; break;
+      case '90d': days = 90; break;
+      case '1y': days = 365; break;
+    }
 
     const conn = await getConnection();
 
-    // Transactions with items
+    // Transactions with items - Use DATE_SUB to avoid timezone issues
     const [txRows] = await conn.execute(
       `SELECT t.id, t.date, t.total_amount, t.payment_method, t.cashier_id, u.name as cashier_name,
                 ti.product_id, p.name as product_name, ti.quantity, ti.unit_price as price, p.category
@@ -44,9 +49,9 @@ export async function GET(req: NextRequest) {
        LEFT JOIN users u ON t.cashier_id = u.id
        LEFT JOIN transaction_items ti ON t.id = ti.transaction_id
        LEFT JOIN products p ON ti.product_id = p.id
-       WHERE t.date >= ? AND t.date <= ?
+       WHERE t.date >= DATE_SUB(NOW(), INTERVAL ? DAY)
        ORDER BY t.date ASC`,
-      [startStr, endStr]
+      [days]
     );
 
     // Build transactions grouped
@@ -158,10 +163,14 @@ export async function GET(req: NextRequest) {
 
     await conn.end();
 
+    // Calculate start and end dates for response
+    const now = new Date();
+    const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
     return NextResponse.json({
       period,
-      startDate: startStr,
-      endDate: endStr,
+      startDate: start.toISOString(),
+      endDate: now.toISOString(),
       salesMetrics: { 
         total_revenue: totalSales, 
         totalSales,
