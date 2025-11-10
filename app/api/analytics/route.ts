@@ -94,12 +94,26 @@ export async function GET(req: NextRequest) {
       if (tx.items && tx.items.length) {
         for (const it of tx.items) {
           const pid = String(it.product_id || it.product_id === 0 ? it.product_id : 'unknown');
-          if (!productPerfMap[pid]) productPerfMap[pid] = { productId: it.product_id, name: it.product_name, quantity: 0, totalSales: 0 };
+          if (!productPerfMap[pid]) {
+            productPerfMap[pid] = { 
+              productId: it.product_id, 
+              name: it.product_name, 
+              category: it.category || 'Other',
+              quantity: 0, 
+              totalSales: 0,
+              // Frontend expects these keys:
+              total_sold: 0,
+              total_revenue: 0
+            };
+          }
+          const itemRevenue = Number(it.quantity || 0) * Number(it.price || 0);
           productPerfMap[pid].quantity += Number(it.quantity || 0);
-          productPerfMap[pid].totalSales += Number(it.quantity || 0) * Number(it.price || 0);
+          productPerfMap[pid].totalSales += itemRevenue;
+          productPerfMap[pid].total_sold += Number(it.quantity || 0);
+          productPerfMap[pid].total_revenue += itemRevenue;
 
           if (it.category) {
-            categoryMap[it.category] = (categoryMap[it.category] || 0) + Number(it.quantity || 0) * Number(it.price || 0);
+            categoryMap[it.category] = (categoryMap[it.category] || 0) + itemRevenue;
           }
         }
       }
@@ -138,6 +152,31 @@ export async function GET(req: NextRequest) {
     }));
 
     const lowStock = inventory.filter(i => i.current_stock < 10);
+
+    // Merge inventory data into product performance
+    const inventoryMap: Record<string, any> = {};
+    inventory.forEach(inv => {
+      inventoryMap[String(inv.id)] = inv;
+    });
+
+    // Add stock information to product performance
+    Object.keys(productPerfMap).forEach(pid => {
+      const inv = inventoryMap[pid];
+      if (inv) {
+        productPerfMap[pid].current_stock = inv.current_stock;
+        productPerfMap[pid].category = inv.category;
+        if (inv.current_stock <= 0) {
+          productPerfMap[pid].stock_status = 'Out of Stock';
+        } else if (inv.current_stock <= 10) {
+          productPerfMap[pid].stock_status = 'Low Stock';
+        } else {
+          productPerfMap[pid].stock_status = 'In Stock';
+        }
+      } else {
+        productPerfMap[pid].current_stock = 0;
+        productPerfMap[pid].stock_status = 'Out of Stock';
+      }
+    });
 
     // KPIs
     const totalSales = transactions.reduce((s: number, t: any) => s + Number(t.total_amount || 0), 0);
