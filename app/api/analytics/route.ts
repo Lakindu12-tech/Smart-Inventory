@@ -139,11 +139,21 @@ export async function GET(req: NextRequest) {
     const totalTransactions = transactions.length;
     const avgSale = totalTransactions ? totalSales / totalTransactions : 0;
 
+    // Calculate inventory health stats
+    const totalProducts = inventory.length;
+    const healthyStock = inventory.filter(i => i.current_stock > 10).length;
+    const lowStockItems = inventory.filter(i => i.current_stock > 0 && i.current_stock <= 10).length;
+    const outOfStock = inventory.filter(i => i.current_stock <= 0).length;
+    const stockoutRate = totalProducts > 0 ? (outOfStock / totalProducts) * 100 : 0;
+    const inventoryTurnover = totalProducts > 0 ? totalTransactions / totalProducts : 0;
+
     const kpis = {
       totalSales,
       totalTransactions,
       avgSale,
-      lowStockCount: lowStock.length
+      lowStockCount: lowStock.length,
+      stockoutRate,
+      inventoryTurnover
     };
 
     await conn.end();
@@ -152,7 +162,14 @@ export async function GET(req: NextRequest) {
       period,
       startDate: startStr,
       endDate: endStr,
-      salesMetrics: { totalSales, totalTransactions, avgSale },
+      salesMetrics: { 
+        total_revenue: totalSales, 
+        totalSales,
+        total_transactions: totalTransactions,
+        totalTransactions, 
+        avg_transaction_value: avgSale,
+        avgSale 
+      },
       growthRate: 0,
       dailySales,
       peakHours: [],
@@ -160,7 +177,14 @@ export async function GET(req: NextRequest) {
       categoryPerformance,
       cashierPerformance,
       topProducts,
-      inventoryHealth: { items: inventory, lowStockCount: lowStock.length },
+      inventoryHealth: { 
+        items: inventory, 
+        total_products: totalProducts,
+        healthy_stock: healthyStock,
+        low_stock: lowStockItems,
+        out_of_stock: outOfStock,
+        lowStockCount: lowStock.length 
+      },
       customerInsights: {},
       kpis
     });
