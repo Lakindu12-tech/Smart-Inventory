@@ -392,6 +392,197 @@ const ReceiptModal = ({
 }) => {
   if (!show) return null;
 
+  const handlePrint = () => {
+    const printWindow = window.open('', '', 'width=800,height=600');
+    if (!printWindow) return;
+
+    const currentDate = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Receipt - ${transactionId}</title>
+        <style>
+          @media print {
+            body { margin: 0; padding: 20px; }
+            .no-print { display: none; }
+          }
+          body {
+            font-family: 'Courier New', monospace;
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px dashed #333;
+            padding-bottom: 10px;
+          }
+          .header h1 {
+            margin: 0 0 5px 0;
+            font-size: 24px;
+          }
+          .header p {
+            margin: 0;
+            font-size: 14px;
+            color: #666;
+          }
+          .info {
+            margin: 20px 0;
+            font-size: 13px;
+          }
+          .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+          }
+          .items {
+            border-top: 1px dashed #333;
+            border-bottom: 1px dashed #333;
+            padding: 15px 0;
+            margin: 20px 0;
+          }
+          .item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+          }
+          .item-name {
+            flex: 1;
+          }
+          .item-price {
+            font-weight: bold;
+          }
+          .total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px 0;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 13px;
+            color: #666;
+          }
+          .print-button {
+            background: #1ecb4f;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 20px auto;
+            display: block;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>SD BANDARA TRADING</h1>
+          <p>Fresh Produce & Groceries</p>
+          <p style="margin-top: 10px; font-size: 12px;">Contact: +94 XX XXX XXXX</p>
+        </div>
+        
+        <div class="info">
+          <div class="info-row">
+            <span>Receipt #:</span>
+            <strong>${transactionId}</strong>
+          </div>
+          <div class="info-row">
+            <span>Date:</span>
+            <strong>${currentDate}</strong>
+          </div>
+          <div class="info-row">
+            <span>Payment:</span>
+            <strong>${payment.toUpperCase()}</strong>
+          </div>
+        </div>
+        
+        <div class="items">
+          ${bill.map(item => `
+            <div class="item">
+              <span class="item-name">${item.name} x${item.qty}kg</span>
+              <span class="item-price">Rs.${(item.price * item.qty).toFixed(2)}</span>
+            </div>
+          `).join('')}
+        </div>
+        
+        <div class="total">
+          <span>TOTAL:</span>
+          <span>Rs.${total.toFixed(2)}</span>
+        </div>
+        
+        <div class="footer">
+          <p>Thank you for your purchase!</p>
+          <p style="margin-top: 10px;">Please come again</p>
+          <p style="margin-top: 20px; font-size: 11px;">*** This is a computer generated receipt ***</p>
+        </div>
+        
+        <button class="print-button no-print" onclick="window.print()">🖨️ Print Receipt</button>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
+  };
+
+  const handleDownload = () => {
+    const currentDate = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    let receiptText = '========================================\n';
+    receiptText += '      SD BANDARA TRADING\n';
+    receiptText += '   Fresh Produce & Groceries\n';
+    receiptText += '========================================\n\n';
+    receiptText += `Receipt #: ${transactionId}\n`;
+    receiptText += `Date: ${currentDate}\n`;
+    receiptText += `Payment: ${payment.toUpperCase()}\n\n`;
+    receiptText += '----------------------------------------\n';
+    receiptText += 'ITEMS:\n';
+    receiptText += '----------------------------------------\n\n';
+    
+    bill.forEach(item => {
+      const itemTotal = (item.price * item.qty).toFixed(2);
+      receiptText += `${item.name} x${item.qty}kg\n`;
+      receiptText += `  @ Rs.${item.price.toFixed(2)} = Rs.${itemTotal}\n\n`;
+    });
+    
+    receiptText += '----------------------------------------\n';
+    receiptText += `TOTAL: Rs.${total.toFixed(2)}\n`;
+    receiptText += '========================================\n\n';
+    receiptText += 'Thank you for your purchase!\n';
+    receiptText += 'Please come again\n\n';
+    receiptText += '*** This is a computer generated receipt ***\n';
+
+    const blob = new Blob([receiptText], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Receipt_${transactionId}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div 
       style={{
@@ -434,7 +625,7 @@ const ReceiptModal = ({
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
             <span>Date:</span>
-            <span>{new Date().toISOString().replace('T', ' ').slice(0, 16)}</span>
+            <span>{new Date().toLocaleString()}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>Payment:</span>
@@ -460,16 +651,63 @@ const ReceiptModal = ({
           <p style={{ margin: '0 0 16px 0', color: '#666' }}>
             Thank you for your purchase!
           </p>
+          
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+            <button 
+              onClick={handlePrint}
+              style={{
+                flex: 1,
+                background: '#007aff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                cursor: 'pointer',
+                fontSize: '15px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              🖨️ Print
+            </button>
+            
+            <button 
+              onClick={handleDownload}
+              style={{
+                flex: 1,
+                background: '#ff9500',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                cursor: 'pointer',
+                fontSize: '15px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              📥 Download
+            </button>
+          </div>
+          
           <button 
             onClick={onClose}
             style={{
+              width: '100%',
               background: '#1ecb4f',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
               padding: '12px 24px',
               cursor: 'pointer',
-              fontSize: '16px'
+              fontSize: '16px',
+              fontWeight: 600
             }}
           >
             Close Receipt
@@ -485,6 +723,8 @@ export default function BillingPage() {
   const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [completedBill, setCompletedBill] = useState<CartItem[]>([]);
+  const [completedTotal, setCompletedTotal] = useState(0);
   const [payment, setPayment] = useState('cash');
   const [discount, setDiscount] = useState(0);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -612,8 +852,13 @@ export default function BillingPage() {
         throw new Error(data.message || 'Checkout failed');
       }
 
+      // Save completed bill BEFORE clearing cart
+      setCompletedBill([...cart]);
+      setCompletedTotal(finalTotal);
       setTransactionId(data.transaction_id || data.transactionId);
       setShowReceipt(true);
+      
+      // Now clear cart
       setCart([]);
       setDiscount(0);
       
@@ -985,9 +1230,9 @@ export default function BillingPage() {
         <ReceiptModal
           show={showReceipt}
           onClose={() => setShowReceipt(false)}
-          bill={cart}
+          bill={completedBill}
           payment={payment}
-          total={finalTotal}
+          total={completedTotal}
           transactionId={transactionId}
         />
 
