@@ -47,7 +47,9 @@
    ```
 
 ### Step 5: Start the System
-1. Double-click `start-system.bat`
+1. Double-click `START.bat` in the project root folder
+   OR
+   Navigate to project folder and run: `scripts\start-system.bat`
 2. Wait for "Ready on http://localhost:3000"
 3. Open browser and go to: `http://localhost:3000`
 
@@ -67,11 +69,11 @@
 ## Daily Usage
 
 ### Starting the System
-1. Double-click `start-system.bat`
+1. Double-click `START.bat` in the project root folder
 2. Open browser: `http://localhost:3000`
 
 ### Stopping the System
-1. Close the Command Prompt window
+1. Double-click `STOP.bat` in the project root folder
 OR
 2. Press `Ctrl + C` in the Command Prompt
 
@@ -93,6 +95,10 @@ OR
 4. System will now start automatically when Windows boots
 
 ## Backup Database
+
+### Quick Backup
+1. Double-click `scripts\backup-database.bat`
+2. Backup saved to `database-backups` folder
 
 ### Manual Backup
 ```bash

@@ -1,0 +1,3 @@
+@echo off
+echo Starting SD Bandara Trading - Inventory System...
+call scripts\start-system.bat

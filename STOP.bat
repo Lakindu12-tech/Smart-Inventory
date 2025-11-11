@@ -1,0 +1,3 @@
+@echo off
+echo Stopping SD Bandara Trading - Inventory System...
+call scripts\stop-system.bat

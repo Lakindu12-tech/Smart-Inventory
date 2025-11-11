@@ -1,103 +1,79 @@
-# Smart Inventory Management System
+# SD Bandara Trading - Inventory Management System
 
-A comprehensive inventory management system built with Next.js, TypeScript, and MySQL. Features advanced billing system with product images similar to Starbucks.
+A comprehensive offline inventory management system built with Next.js, TypeScript, and MySQL for retail operations.
+
+## 🎯 Quick Start
+
+### For Users (Customer Installation)
+1. **Start the system**: Double-click `START.bat`
+2. **Access**: Open browser → `http://localhost:3000`
+3. **Login**: Use credentials from installation guide
+4. **Stop**: Double-click `STOP.bat`
+
+### For Developers
+```bash
+npm install          # Install dependencies
+npm run dev          # Development mode
+npm run build        # Production build
+npm start            # Production mode
+```
+
+## 📁 Project Structure
+
+```
+project01/
+├── app/                    # Next.js app directory
+│   ├── api/               # API routes (sales, products, users, reports)
+│   ├── components/        # Reusable React components
+│   ├── dashboard/         # Dashboard pages (billing, reports, etc.)
+│   └── globals.css        # Global styles
+│
+├── lib/                   # Core utilities
+│   ├── database.ts        # Database connection
+│   ├── auth.ts           # Authentication utilities
+│   └── setup-database.ts  # Database initialization
+│
+├── public/                # Static assets
+│   └── images/           # Product images
+│
+├── docs/                  # Documentation
+│   ├── INSTALLATION_GUIDE.md   # Installation instructions
+│   ├── USER_MANUAL.md          # User guide for all roles
+│   └── *.md                    # Other documentation
+│
+├── scripts/               # Utility scripts
+│   ├── start-system.bat        # Full start script
+│   ├── stop-system.bat         # Stop script
+│   └── backup-database.bat     # Database backup
+│
+├── testing/               # Test scripts
+│   └── *.js              # Various test utilities
+│
+├── START.bat             # Quick start launcher
+├── STOP.bat              # Quick stop launcher
+├── .env                  # Environment configuration
+├── package.json          # Dependencies
+└── tsconfig.json         # TypeScript configuration
+```
 
 ## 🚀 Features
 
 ### Core Features
-- **User Management**: Role-based access control (Owner, Storekeeper, Cashier)
-- **Product Management**: Add, edit, and track products with categories
-- **Stock Management**: Real-time stock tracking and movements
-- **Advanced Billing System**: Modern POS-like interface with product images
-- **Sales Tracking**: Complete transaction history and reporting
-- **Request System**: Storekeepers can request product additions, price changes, and stock updates
+- **User Management**: Role-based access (Owner, Storekeeper, Cashier)
+- **Product Management**: Catalog with images and categories
+- **Stock Management**: Real-time tracking with movements approval
+- **Billing System**: Modern POS with product images
+- **Reports & Analytics**: Role-specific insights and charts
+- **Receipt Generation**: Print & Download capabilities
+- **Offline Operation**: No internet required
 
-### Advanced Billing System 🎨
-- **Product Images**: Visual product selection with high-quality images
-- **Dual Upload Methods**: Support for both URL links and local file uploads
-- **Multiple Image Formats**: JPG, PNG, GIF, WebP, BMP support (max 5MB)
-- **Drag & Drop**: Easy file upload with drag and drop functionality
-- **Customization Panel**: Easy product image management for cashiers
-- **Modern UI**: Starbucks-inspired interface with smooth animations
-- **Visual Product Cards**: Product images with hover effects and stock indicators
-- **Enhanced Cart**: Visual cart items with product images
-- **Responsive Design**: Works perfectly on different screen sizes
+## �️ Technology Stack
 
-## 🛠️ Technology Stack
-
-- **Frontend**: Next.js 14, TypeScript, React
+- **Frontend**: Next.js 15, TypeScript, React
 - **Backend**: Next.js API Routes
-- **Database**: MySQL
+- **Database**: MySQL 8.0
 - **Authentication**: JWT tokens
-- **Styling**: CSS-in-JS with modern design patterns
-
-## 📦 Installation
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables in `.env`:
-   ```
-   DB_HOST=localhost
-   DB_USER=root
-   DB_PASSWORD=your_password
-   DB_NAME=smart_inventory
-   DB_PORT=3306
-   JWT_SECRET=your_jwt_secret
-   ```
-
-4. Run database migrations:
-   ```bash
-   node testing/migrate-add-product-images.js
-   ```
-
-5. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-## 🎯 Usage
-
-### Default Admin Account
-- **Email**: admin@inventory.com
-- **Password**: admin123
-
-### Advanced Billing Features
-
-1. **Product Customization**:
-   - Click the 🎨 Customize button in the top-right corner of the billing page
-   - Choose between URL input or file upload methods
-   - Upload local images (drag & drop supported) or paste image URLs
-   - Preview images before saving
-   - Remove images if needed
-
-2. **Visual Product Selection**:
-   - Products display with images (if available)
-   - Hover effects and animations
-   - Stock indicators and availability status
-   - Grid layout for easy browsing
-   - Support for multiple image formats
-
-3. **Enhanced Cart Experience**:
-   - Visual cart items with product images
-   - Real-time total calculation
-   - Smooth quantity adjustments
-   - Modern checkout process
-
-## 📱 Screenshots
-
-### Advanced Billing Interface
-- Modern product grid with images
-- Customization panel for product images
-- Enhanced cart with visual items
-- Starbucks-inspired design
-
-### Product Customization
-- Easy image management
-- Preview functionality
+- **Styling**: CSS-in-JS
 - Bulk product selection
 - User-friendly interface
 
@@ -121,50 +97,90 @@ The system supports extensive customization:
 
 - **Product Images**: Add high-quality product images via URL
 - **UI Themes**: Modern, clean interface with smooth animations
-- **Layout**: Responsive grid system for optimal viewing
-- **Branding**: Customizable company information and styling
 
-## 📊 Reporting
+## 📦 Installation
 
-- Sales reports with detailed analytics
-- Stock movement tracking
-- User activity monitoring
-- Transaction history
+See detailed instructions in `docs/INSTALLATION_GUIDE.md`
+
+**Quick Setup:**
+1. Install Node.js and MySQL
+2. Configure `.env` file
+3. Run `npm install`
+4. Run `node lib/setup-database.js`
+5. Start with `START.bat`
+
+## 🎯 Default Login Credentials
+
+### Owner Account
+- Email: `admin@inventory.com`
+- Password: `admin123`
+- Access: Full system control
+
+### Cashier Account
+- Email: `cashier@inventory.com`
+- Password: `cashier123`
+- Access: Billing only
+
+### Storekeeper Account
+- Email: `store@inventory.com`
+- Password: `store123`
+- Access: Inventory management
+
+⚠️ **Change these passwords after first login!**
+
+## 📚 Documentation
+
+- **Installation Guide**: `docs/INSTALLATION_GUIDE.md`
+- **User Manual**: `docs/USER_MANUAL.md`
+- **Reports Documentation**: `docs/REPORTS_MODULE_COMPLETE.md`
+
+## 🔧 Maintenance
+
+### Database Backup
+```bash
+# Quick backup
+scripts\backup-database.bat
+
+# Manual backup
+mysqldump -u root -p smart_inventory > backup.sql
+```
+
+### Daily Operations
+- **Start**: `START.bat`
+- **Stop**: `STOP.bat`
+- **Backup**: `scripts\backup-database.bat`
 
 ## 🔒 Security
 
 - JWT-based authentication
-- Role-based access control
-- Secure API endpoints
-- Input validation and sanitization
-
-## 🚀 Deployment
-
-1. Build the application:
-   ```bash
-   npm run build
-   ```
-
-2. Start the production server:
-   ```bash
-   npm start
-   ```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
+- Role-based access control (RBAC)
+- Secure password storage
+- Session management
+- Input validation
 
 ## 🆘 Support
 
-For support and questions, please contact the development team or create an issue in the repository.
+For issues or questions:
+1. Check `docs/INSTALLATION_GUIDE.md`
+2. Review `docs/USER_MANUAL.md`
+3. Contact: [Your Support Email]
+
+## 📝 Version
+
+**v1.0.0** - Production Release
+- Complete billing system with print/download
+- Role-based reports module
+- Stock management with approvals
+- Multi-user authentication
+
+## � License
+
+Proprietary software developed for SD Bandara Trading.
+All rights reserved © 2025
 
 ---
 
-**Built with ❤️ for modern inventory management**
+**SD Bandara Trading - Inventory Management System**  
+*Fresh Produce & Groceries*  
+Developed by: Lakindu  
+GitHub: https://github.com/Lakindu12-tech/Smart-Inventory
