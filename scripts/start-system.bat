@@ -41,13 +41,18 @@ REM Start the system
 echo.
 echo ========================================
 echo System is starting...
-echo Please wait for "Ready on http://localhost:3000"
-echo Then open your browser to: http://localhost:3000
+echo Opening browser automatically...
 echo.
 echo To stop the system, close this window or press Ctrl+C
 echo ========================================
 echo.
 
-call npm start
+REM Start the server in background and open browser after a delay
+start /b npm start
 
+REM Wait 5 seconds for the server to start, then open browser
+timeout /t 5 /nobreak >nul
+start http://localhost:3000
+
+REM Keep the window open
 pause
