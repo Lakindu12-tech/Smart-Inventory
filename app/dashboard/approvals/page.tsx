@@ -319,8 +319,8 @@ export default function ApprovalsPage() {
                 <div>
                   {item.request_type === 'product_request' ? (
                      item.type === 'add' ? item.product_name :
-                     item.type === 'price' ? `Rs.${item.requested_price}` :
-                     item.requested_quantity !== undefined ? `${item.requested_quantity > 0 ? '+' : ''}${item.requested_quantity}` : ''
+                     item.type === 'price' ? `${item.product_name || 'Unknown Product'} - Rs.${item.requested_price}` :
+                     `${item.product_name || 'Unknown Product'} - ${item.requested_quantity !== undefined ? `${item.requested_quantity > 0 ? '+' : ''}${item.requested_quantity}` : ''}` 
                   ) : (
                     `${item.movement_type === 'in' ? '+' : '-'}${item.quantity} units - ${item.product_name}`
                   )}

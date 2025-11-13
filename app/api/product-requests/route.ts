@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     const decoded = verifyToken(token);
     if (!decoded) return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     const { searchParams } = new URL(req.url);
-    let sql = 'SELECT pr.*, u.name as requester_name FROM product_requests pr JOIN users u ON pr.requester_id = u.id';
+    let sql = 'SELECT pr.*, u.name as requester_name, p.name as product_name FROM product_requests pr JOIN users u ON pr.requester_id = u.id LEFT JOIN products p ON pr.product_id = p.id';
     const params: any[] = [];
     const filters: string[] = [];
     if (decoded.role === 'storekeeper') {
