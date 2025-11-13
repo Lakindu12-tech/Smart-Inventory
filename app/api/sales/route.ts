@@ -57,8 +57,10 @@ export async function GET(req: NextRequest) {
       // Filter by cashier_id if user is a cashier (not owner)
       let queryParams: any[] = [];
       if (decoded.role === 'cashier') {
-        transactionsQuery += ` WHERE t.cashier_id = ?`;
+        transactionsQuery += ` WHERE t.cashier_id = ? AND t.status = 'active'`;
         queryParams.push(decoded.userId);
+      } else {
+        transactionsQuery += ` WHERE t.status = 'active'`;
       }
       
       transactionsQuery += `
@@ -142,8 +144,8 @@ export async function POST(req: NextRequest) {
 
     // Create transaction
     const transactionResult = await query(`
-      INSERT INTO transactions (transaction_number, cashier_id, total_amount, payment_method, discount, notes)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (transaction_number, cashier_id, total_amount, payment_method, discount, notes, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'active')
     `, [transaction_number, decoded.userId, finalTotal, payment_method, discount, notes]) as any;
 
     const transactionId = transactionResult.insertId;

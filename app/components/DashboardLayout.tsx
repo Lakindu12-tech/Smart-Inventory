@@ -135,6 +135,7 @@ export default function DashboardLayout({ children, userRole, userName }: Dashbo
           ...baseItems,
           { name: 'Sales & Billing', icon: '💰', href: '/dashboard/billing' },
           { name: 'Products', icon: '📦', href: '/dashboard/products' },
+          { name: 'Bill Reversals', icon: '🔄', href: '/dashboard/reversals' },
           { name: 'Reports', icon: '📊', href: '/dashboard/reports' },
         ];
       default:

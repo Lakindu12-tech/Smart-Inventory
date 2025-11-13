@@ -43,13 +43,30 @@ interface StockMovement {
   request_type: 'stock_movement';
 }
 
-type ApprovalItem = ProductRequest | StockMovement;
+interface ReversalRequest {
+  id: number;
+  transaction_id: number;
+  transaction_number: string;
+  total_amount: string;
+  cashier_id: number;
+  cashier_name: string;
+  cashier_reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  owner_comment?: string;
+  approved_by?: number;
+  created_at: string;
+  updated_at?: string;
+  request_type: 'reversal_request';
+}
+
+type ApprovalItem = ProductRequest | StockMovement | ReversalRequest;
 
 export default function ApprovalsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [filters, setFilters] = useState({ status: 'all', type: 'all', date: '' });
   const [requests, setRequests] = useState<ProductRequest[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [reversalRequests, setReversalRequests] = useState<ReversalRequest[]>([]);
   const [allItems, setAllItems] = useState<ApprovalItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<ApprovalItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,7 +143,20 @@ export default function ApprovalsPage() {
       const movements = Array.isArray(stockMovementsData.movements) ? stockMovementsData.movements.map((movement: any) => ({ ...movement, request_type: 'stock_movement' as const, type: movement.movement_type, requester_name: movement.performed_by_name })) : [];
       setStockMovements(movements);
 
-      const combinedItems = [...productRequests, ...movements];
+      // Fetch reversal requests
+      const reversalResponse = await fetch('/api/reversal-requests', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!reversalResponse.ok) throw new Error('Failed to fetch reversal requests');
+      const reversalData = await reversalResponse.json();
+      const reversals = Array.isArray(reversalData) ? reversalData.map((req: any) => ({ 
+        ...req, 
+        request_type: 'reversal_request' as const,
+        requester_name: req.cashier_name
+      })) : [];
+      setReversalRequests(reversals);
+
+      const combinedItems = [...productRequests, ...movements, ...reversals];
       setAllItems(combinedItems);
     } catch (error) {
       console.error('Error fetching requests:', error);
@@ -190,6 +220,12 @@ export default function ApprovalsPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ comment: comment || (actionType === 'approve' ? 'Approved' : 'Rejected') })
+      }).catch(() => {});
+    } else if (selectedItem.request_type === 'reversal_request') {
+      fetch(`/api/reversal-requests/${itemId}/${actionType}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ owner_comment: comment || (actionType === 'approve' ? 'Approved' : 'Rejected') })
       }).catch(() => {});
     }
 
@@ -314,18 +350,32 @@ export default function ApprovalsPage() {
             filteredItems.map(item => (
               <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr', padding: '1rem', borderBottom: '1px solid #eee', fontSize: '0.9rem', alignItems: 'center' }}>
                 <div style={{ fontWeight: 500 }}>
-                  {getTypeIcon(item.request_type === 'product_request' ? item.type : item.movement_type)} {item.request_type === 'stock_movement' ? item.movement_type : item.type}
+                  {item.request_type === 'product_request' && getTypeIcon(item.type)} 
+                  {item.request_type === 'stock_movement' && getTypeIcon(item.movement_type)} 
+                  {item.request_type === 'reversal_request' && '🔄'} 
+                  {' '}
+                  {item.request_type === 'product_request' && item.type}
+                  {item.request_type === 'stock_movement' && item.movement_type}
+                  {item.request_type === 'reversal_request' && 'reversal'}
                 </div>
                 <div>
-                  {item.request_type === 'product_request' ? (
+                  {item.request_type === 'product_request' && (
                      item.type === 'add' ? item.product_name :
                      item.type === 'price' ? `${item.product_name || 'Unknown Product'} - Rs.${item.requested_price}` :
                      `${item.product_name || 'Unknown Product'} - ${item.requested_quantity !== undefined ? `${item.requested_quantity > 0 ? '+' : ''}${item.requested_quantity}` : ''}` 
-                  ) : (
+                  )}
+                  {item.request_type === 'stock_movement' && (
                     `${item.movement_type === 'in' ? '+' : '-'}${item.quantity} units - ${item.product_name}`
                   )}
+                  {item.request_type === 'reversal_request' && (
+                    `${item.transaction_number} - Rs.${parseFloat(item.total_amount).toFixed(2)}`
+                  )}
                 </div>
-                <div>{item.request_type === 'product_request' ? item.requester_name : item.performed_by_name}</div>
+                <div>
+                  {item.request_type === 'product_request' && item.requester_name}
+                  {item.request_type === 'stock_movement' && item.performed_by_name}
+                  {item.request_type === 'reversal_request' && item.cashier_name}
+                </div>
                 <div style={{ color: getStatusColor(item.status), fontWeight: 600 }}>
                   {getStatusIcon(item.status)} {item.status}
                 </div>
@@ -333,7 +383,9 @@ export default function ApprovalsPage() {
                   {new Date(item.created_at).toISOString().slice(0, 10)}
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#666' }}>
-                  {item.reason || '-'}
+                  {item.request_type === 'product_request' && (item.reason || '-')}
+                  {item.request_type === 'stock_movement' && (item.reason || '-')}
+                  {item.request_type === 'reversal_request' && (item.cashier_reason || '-')}
                 </div>
                 <div>
                   {item.status === 'pending' && (
@@ -388,17 +440,32 @@ export default function ApprovalsPage() {
             <div style={{ marginBottom: '1rem' }}>
               <strong>Request Details:</strong>
               <div style={{ marginTop: '0.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
-                <div><strong>Type:</strong> {selectedItem?.request_type === 'stock_movement' ? (selectedItem as StockMovement)?.movement_type : (selectedItem as ProductRequest)?.type}</div>
-                <div><strong>Details:</strong> {selectedItem?.request_type === 'product_request'
-                  ? ((selectedItem as ProductRequest)?.type === 'add'
-                      ? (selectedItem as ProductRequest)?.product_name
-                      : (selectedItem as ProductRequest)?.type === 'price'
-                        ? `Rs.${(selectedItem as ProductRequest)?.requested_price}`
-                        : `${(selectedItem as ProductRequest)?.requested_quantity} units`)
-                  : `${(selectedItem as StockMovement)?.movement_type === 'in' ? '+' : '-'}${(selectedItem as StockMovement)?.quantity} units - ${(selectedItem as StockMovement)?.product_name}`}
-                </div>
-                <div><strong>Requester:</strong> {selectedItem?.request_type === 'product_request' ? (selectedItem as ProductRequest)?.requester_name : (selectedItem as StockMovement)?.performed_by_name}</div>
-                <div><strong>Reason:</strong> {selectedItem?.reason || 'None provided'}</div>
+                <div><strong>Type:</strong> {
+                  selectedItem?.request_type === 'stock_movement' ? (selectedItem as StockMovement)?.movement_type :
+                  selectedItem?.request_type === 'product_request' ? (selectedItem as ProductRequest)?.type :
+                  'reversal'
+                }</div>
+                <div><strong>Details:</strong> {
+                  selectedItem?.request_type === 'product_request'
+                    ? ((selectedItem as ProductRequest)?.type === 'add'
+                        ? (selectedItem as ProductRequest)?.product_name
+                        : (selectedItem as ProductRequest)?.type === 'price'
+                          ? `Rs.${(selectedItem as ProductRequest)?.requested_price}`
+                          : `${(selectedItem as ProductRequest)?.requested_quantity} units`)
+                    : selectedItem?.request_type === 'stock_movement'
+                      ? `${(selectedItem as StockMovement)?.movement_type === 'in' ? '+' : '-'}${(selectedItem as StockMovement)?.quantity} units - ${(selectedItem as StockMovement)?.product_name}`
+                      : `${(selectedItem as ReversalRequest)?.transaction_number} - Rs.${parseFloat((selectedItem as ReversalRequest)?.total_amount || '0').toFixed(2)}`
+                }</div>
+                <div><strong>Requester:</strong> {
+                  selectedItem?.request_type === 'product_request' ? (selectedItem as ProductRequest)?.requester_name :
+                  selectedItem?.request_type === 'stock_movement' ? (selectedItem as StockMovement)?.performed_by_name :
+                  (selectedItem as ReversalRequest)?.cashier_name
+                }</div>
+                <div><strong>Reason:</strong> {
+                  selectedItem?.request_type === 'product_request' ? ((selectedItem as ProductRequest)?.reason || 'None provided') :
+                  selectedItem?.request_type === 'stock_movement' ? ((selectedItem as StockMovement)?.reason || 'None provided') :
+                  ((selectedItem as ReversalRequest)?.cashier_reason || 'None provided')
+                }</div>
               </div>
             </div>
             <div style={{ marginBottom: '1.5rem' }}>

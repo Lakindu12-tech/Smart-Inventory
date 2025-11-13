@@ -64,6 +64,36 @@ export async function setupDatabase() {
       )
     `);
 
+    // Add status column to transactions if it doesn't exist
+    try {
+      await connection.execute(`
+        ALTER TABLE transactions 
+        ADD COLUMN status ENUM('active', 'reversed') DEFAULT 'active'
+      `);
+    } catch (error) {
+      // Column already exists, ignore
+    }
+
+    // Create reversal_requests table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS reversal_requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        transaction_id INT NOT NULL,
+        transaction_number VARCHAR(50) NOT NULL,
+        total_amount DECIMAL(10,2) NOT NULL,
+        cashier_id INT NOT NULL,
+        cashier_reason TEXT NOT NULL,
+        status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+        owner_comment TEXT DEFAULT NULL,
+        approved_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (transaction_id) REFERENCES transactions(id),
+        FOREIGN KEY (cashier_id) REFERENCES users(id),
+        FOREIGN KEY (approved_by) REFERENCES users(id)
+      )
+    `);
+
     // Create default owner user
     const hashedPassword = await hashPassword('admin123');
     await connection.execute(`
