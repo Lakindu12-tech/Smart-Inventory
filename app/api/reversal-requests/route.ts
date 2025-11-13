@@ -71,11 +71,22 @@ export async function POST(req: NextRequest) {
 
     if (!transactions.length) {
       return NextResponse.json({ 
-        message: 'Transaction not found or already reversed' 
+        message: 'Transaction not found, does not belong to you, or already reversed' 
       }, { status: 404 });
     }
 
     const transaction = transactions[0];
+
+    // Check if transaction is within 2 days (48 hours)
+    const transactionDate = new Date(transaction.date);
+    const now = new Date();
+    const hoursDiff = (now.getTime() - transactionDate.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursDiff > 48) {
+      return NextResponse.json({ 
+        message: 'Cannot reverse bills older than 2 days. This transaction is too old.' 
+      }, { status: 400 });
+    }
 
     // Check if there's already a pending request for this transaction
     const existing = await query(

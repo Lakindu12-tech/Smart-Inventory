@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
     const conn = await getConnection();
 
-    // Transactions with items - Use DATE_SUB to avoid timezone issues
+    // Transactions with items - Use DATE_SUB to avoid timezone issues (exclude reversed)
     const [txRows] = await conn.execute(
       `SELECT t.id, t.date, t.total_amount, t.payment_method, t.cashier_id, u.name as cashier_name,
                 ti.product_id, p.name as product_name, ti.quantity, ti.unit_price as price, p.category
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
        LEFT JOIN users u ON t.cashier_id = u.id
        LEFT JOIN transaction_items ti ON t.id = ti.transaction_id
        LEFT JOIN products p ON ti.product_id = p.id
-       WHERE t.date >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       WHERE t.date >= DATE_SUB(NOW(), INTERVAL ? DAY) AND t.status = 'active'
        ORDER BY t.date ASC`,
       [days]
     );

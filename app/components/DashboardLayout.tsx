@@ -22,8 +22,10 @@ export default function DashboardLayout({ children, userRole, userName }: Dashbo
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
+  const [showReversalNotification, setShowReversalNotification] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [pendingReversalCount, setPendingReversalCount] = useState(0);
   const router = useRouter();
 
   // Check for pending requests when owner logs in
@@ -76,6 +78,30 @@ export default function DashboardLayout({ children, userRole, userName }: Dashbo
           setShowNotification(false);
         }, 10000);
       }
+
+      // Fetch reversal requests
+      const reversalRes = await fetch('/api/reversal-requests', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      let reversalData: any[] = [];
+      try {
+        const reversalText = await reversalRes.text();
+        if (reversalText) reversalData = JSON.parse(reversalText);
+      } catch (e) {
+        console.error('Error parsing reversal response:', e);
+      }
+
+      const pendingReversals = reversalData.filter((r: any) => r.status === 'pending');
+      
+      if (pendingReversals.length > 0) {
+        setPendingReversalCount(pendingReversals.length);
+        setShowReversalNotification(true);
+        
+        // Auto-hide notification after 3 seconds
+        setTimeout(() => {
+          setShowReversalNotification(false);
+        }, 3000);
+      }
     } catch (error) {
       console.error('Error checking pending requests:', error);
     }
@@ -84,6 +110,11 @@ export default function DashboardLayout({ children, userRole, userName }: Dashbo
   const handleNotificationClick = () => {
     setShowNotification(false);
     router.push('/dashboard/approvals');
+  };
+
+  const handleReversalNotificationClick = () => {
+    setShowReversalNotification(false);
+    router.push('/dashboard/bill-reversals');
   };
 
   const handleLogout = () => {
@@ -120,6 +151,7 @@ export default function DashboardLayout({ children, userRole, userName }: Dashbo
           ...baseItems,
           { name: 'User Management', icon: '👥', href: '/dashboard/users' },
           { name: 'Product Approvals', icon: '✅', href: '/dashboard/approvals', badge: pendingCount > 0 ? pendingCount : undefined },
+          { name: 'Bill Reversals', icon: '🔄', href: '/dashboard/bill-reversals' },
           { name: 'Stock Management', icon: '📋', href: '/dashboard/stock' },
           { name: 'Reports & Analytics', icon: '📊', href: '/dashboard/reports' }
         ];
@@ -191,6 +223,60 @@ export default function DashboardLayout({ children, userRole, userName }: Dashbo
           </div>
           <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>
             You have {pendingCount} pending request{pendingCount > 1 ? 's' : ''} that need your approval.
+          </div>
+          <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '0.5rem' }}>
+            Click to review → 
+          </div>
+        </div>
+      )}
+
+      {/* Bill Reversal Notification Banner for Owner */}
+      {showReversalNotification && userRole === 'owner' && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: 'linear-gradient(135deg, #ff3b3b, #ff6b6b)',
+          color: '#fff',
+          padding: '1rem 1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 4px 20px rgba(255,59,59,0.3)',
+          zIndex: 2001,
+          cursor: 'pointer',
+          animation: 'slideIn 0.5s ease-out',
+          maxWidth: '350px',
+          border: '2px solid rgba(255,255,255,0.2)',
+          transition: 'all 0.3s ease'
+        }}
+        onClick={handleReversalNotificationClick}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = '0 6px 25px rgba(255,59,59,0.4)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,59,59,0.3)';
+        }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '1.5rem' }}>🔄</div>
+            <div style={{ fontWeight: 600, fontSize: '1rem' }}>Bill Reversals</div>
+            <div style={{
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '50%',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.8rem',
+              fontWeight: 'bold'
+            }}>
+              {pendingReversalCount}
+            </div>
+          </div>
+          <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>
+            {pendingReversalCount} pending reversal request{pendingReversalCount > 1 ? 's' : ''} need your review.
           </div>
           <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '0.5rem' }}>
             Click to review → 

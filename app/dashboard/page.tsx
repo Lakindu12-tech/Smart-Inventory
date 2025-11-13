@@ -124,10 +124,15 @@ export default function Dashboard() {
           const salesText = await salesRes.text();
           if (salesText) {
             const salesData = JSON.parse(salesText);
-            const today = new Date().toDateString();
-            const todayTransactions = salesData.transactions?.filter((t: any) => 
-              new Date(t.date).toDateString() === today
-            ) || [];
+            const now = new Date();
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+            const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            
+            const todayTransactions = salesData.transactions?.filter((t: any) => {
+              const txnDate = new Date(t.date);
+              return txnDate >= startOfToday && txnDate <= endOfToday;
+            }) || [];
+            
             todaySales = todayTransactions.length;
             todayRevenue = todayTransactions.reduce((sum: number, t: any) => sum + (parseFloat(t.total_amount) || 0), 0);
           }
@@ -284,11 +289,7 @@ export default function Dashboard() {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
             border: '2px solid #ff3b3b40',
             cursor: 'pointer',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            ':hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: '0 4px 16px rgba(255,59,59,0.2)'
-            }
+            transition: 'transform 0.2s, box-shadow 0.2s'
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'translateY(-2px)';
@@ -384,7 +385,7 @@ export default function Dashboard() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ fontSize: '2rem', background: '#007aff20', padding: '0.8rem', borderRadius: '12px' }}>🍌</div>
+          <div style={{ fontSize: '2rem', background: '#007aff20', padding: '0.8rem', borderRadius: '12px' }}>🍌</div>
             <div>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#007aff' }}>{stats.totalProducts}</div>
               <div style={{ color: '#666', fontSize: '0.9rem' }}>Total Produce Types</div>
@@ -395,7 +396,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{ fontSize: '2rem', background: '#1ecb4f20', padding: '0.8rem', borderRadius: '12px' }}>💰</div>
             <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1ecb4f' }}>Rs. {stats.todayRevenue.toFixed(2)}</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1ecb4f' }}>{stats.todaySales}</div>
               <div style={{ color: '#666', fontSize: '0.9rem' }}>Today's Sales</div>
             </div>
           </div>
@@ -687,24 +688,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div style={{
-          background: '#fff',
-          padding: '1.5rem',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          border: '2px solid #ff950020'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ fontSize: '2rem', background: '#ff950020', padding: '0.8rem', borderRadius: '12px' }}>
-              📦
-            </div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ff9500' }}>{stats.availableProducts}</div>
-              <div style={{ color: '#666', fontSize: '0.9rem' }}>Available Products</div>
-            </div>
-          </div>
-        </div>
-
         <div 
           onClick={() => navigateToStockWithFilter('in-stock')}
           style={{
@@ -737,13 +720,13 @@ export default function Dashboard() {
         </div>
 
         <div 
-          onClick={() => navigateToStockWithFilter('low-stock')}
+          onClick={() => navigateToStockWithFilter('out-of-stock')}
           style={{
             background: '#fff',
             padding: '1.5rem',
             borderRadius: '12px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            border: '2px solid #ff3b3b20',
+            border: '2px solid #ff3b3b40',
             cursor: 'pointer',
             transition: 'transform 0.2s, box-shadow 0.2s'
           }}
@@ -757,12 +740,12 @@ export default function Dashboard() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ fontSize: '2rem', background: '#ff3b3b20', padding: '0.8rem', borderRadius: '12px' }}>
-              🛑
+            <div style={{ fontSize: '2rem', background: '#ff3b3b40', padding: '0.8rem', borderRadius: '12px' }}>
+              ❗
             </div>
             <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ff3b3b' }}>{stats.lowStockItems}</div>
-              <div style={{ color: '#666', fontSize: '0.9rem' }}>Low Stock Items</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ff3b3b' }}>{stats.outOfStockItems}</div>
+              <div style={{ color: '#666', fontSize: '0.9rem' }}>Out of Stock Items</div>
             </div>
           </div>
         </div>

@@ -44,13 +44,13 @@ export async function GET(req: NextRequest) {
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     }
 
-    // Fetch sales data
+    // Fetch sales data (exclude reversed transactions)
     const transactions = await query(`
       SELECT t.*, ti.product_id, ti.quantity, ti.unit_price AS unit_price, p.name as product_name
       FROM transactions t
       LEFT JOIN transaction_items ti ON t.id = ti.transaction_id
       LEFT JOIN products p ON ti.product_id = p.id
-      WHERE t.date >= ?
+      WHERE t.date >= ? AND t.status = 'active'
       ORDER BY t.date DESC
     `, [startDate.toISOString()]) as any[];
 

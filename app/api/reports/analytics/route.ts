@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
                 u.name as cashier_name
          FROM transactions t
          LEFT JOIN users u ON t.cashier_id = u.id
-         WHERE DATE(t.date) = CURDATE()
+         WHERE DATE(t.date) = CURDATE() AND t.status = 'active'
          ORDER BY t.date DESC`
       );
 
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
                 COUNT(t.id) as transaction_count,
                 SUM(t.total_amount) as total_revenue
          FROM transactions t
-         WHERE t.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+         WHERE t.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND t.status = 'active'
          GROUP BY DATE(t.date)
          ORDER BY date ASC`
       );
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
            SUM(total_amount) as total_revenue,
            AVG(total_amount) as avg_transaction
          FROM transactions
-         WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)`
+         WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND status = 'active'`
       );
 
       // 5. Inventory Value (Current stock * price for each product)
@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
          FROM transaction_items ti
          JOIN products p ON ti.product_id = p.id
          JOIN transactions t ON ti.transaction_id = t.id
-         WHERE t.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+         WHERE t.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND t.status = 'active'
          GROUP BY p.id, p.name, p.category
          ORDER BY total_sold DESC
          LIMIT 10`
@@ -129,12 +129,12 @@ export async function GET(req: NextRequest) {
                 COALESCE(MAX(t.date), 'Never') as last_sold
          FROM products p
          LEFT JOIN transaction_items ti ON p.id = ti.product_id
-         LEFT JOIN transactions t ON ti.transaction_id = t.id
+         LEFT JOIN transactions t ON ti.transaction_id = t.id AND t.status = 'active'
          WHERE p.id NOT IN (
            SELECT DISTINCT ti2.product_id 
            FROM transaction_items ti2
            JOIN transactions t2 ON ti2.transaction_id = t2.id
-           WHERE t2.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+           WHERE t2.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND t2.status = 'active'
          )
          GROUP BY p.id, p.name, p.category, p.price
          LIMIT 10`
@@ -148,7 +148,7 @@ export async function GET(req: NextRequest) {
          FROM transaction_items ti
          JOIN products p ON ti.product_id = p.id
          JOIN transactions t ON ti.transaction_id = t.id
-         WHERE t.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+         WHERE t.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND t.status = 'active'
          GROUP BY p.id, p.name, p.category
          ORDER BY total_revenue DESC
          LIMIT 10`
@@ -273,7 +273,7 @@ export async function GET(req: NextRequest) {
       const [todayBills] = await conn.execute(
         `SELECT t.id, t.transaction_number, t.total_amount, t.payment_method, t.date
          FROM transactions t
-         WHERE DATE(t.date) = CURDATE() AND t.cashier_id = ?
+         WHERE DATE(t.date) = CURDATE() AND t.cashier_id = ? AND t.status = 'active'
          ORDER BY t.date DESC`,
         [userId]
       );
@@ -303,7 +303,7 @@ export async function GET(req: NextRequest) {
                 COUNT(t.id) as bill_count,
                 SUM(t.total_amount) as total_revenue
          FROM transactions t
-         WHERE t.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND t.cashier_id = ?
+         WHERE t.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND t.cashier_id = ? AND t.status = 'active'
          GROUP BY DATE(t.date)
          ORDER BY date ASC`,
         [userId]
@@ -316,7 +316,7 @@ export async function GET(req: NextRequest) {
            SUM(total_amount) as total_revenue,
            AVG(total_amount) as avg_bill
          FROM transactions
-         WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND cashier_id = ?`,
+         WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND cashier_id = ? AND status = 'active'`,
         [userId]
       );
 

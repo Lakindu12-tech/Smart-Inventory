@@ -40,12 +40,13 @@ export async function GET(req: NextRequest) {
   const connection = await getConnection();
 
   try {
-    // Summary: total transactions, total sales
+    // Summary: total transactions, total sales (exclude reversed)
+    const whereWithStatus = where ? `${where} AND t.status = 'active'` : `WHERE t.status = 'active'`;
     const [summaryRows] = await connection.execute(
       `SELECT COUNT(DISTINCT t.id) as totalTransactions, COALESCE(SUM(t.total_amount),0) as totalSales
        FROM transactions t
        LEFT JOIN transaction_items ti ON t.id = ti.transaction_id
-       ${where}`,
+       ${whereWithStatus}`,
       params
     );
     const summary = Array.isArray(summaryRows) ? summaryRows[0] : summaryRows;
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
       `SELECT ${groupExpr} as period, COALESCE(SUM(t.total_amount),0) as total, COUNT(DISTINCT t.id) as transactions
        FROM transactions t
        LEFT JOIN transaction_items ti ON t.id = ti.transaction_id
-       ${where}
+       ${whereWithStatus}
        GROUP BY period
        ORDER BY period ASC`,
       params
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest) {
        FROM transaction_items ti
        JOIN products p ON ti.product_id = p.id
        JOIN transactions t ON ti.transaction_id = t.id
-       ${where}
+       ${whereWithStatus}
        GROUP BY p.id, p.name
        ORDER BY quantity DESC
        LIMIT 5`,
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
        LEFT JOIN users u ON t.cashier_id = u.id
        LEFT JOIN transaction_items ti ON t.id = ti.transaction_id
        LEFT JOIN products p ON ti.product_id = p.id
-       ${where}
+       ${whereWithStatus}
        ORDER BY t.date DESC, t.id DESC`,
       params
     );

@@ -81,12 +81,20 @@ export default function ReversalsPage() {
     try {
       const token = localStorage.getItem('token');
       
-      // Fetch recent transactions
+      // Fetch recent transactions (only last 2 days)
       const txnRes = await fetch('/api/sales?transactions=true', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const txnData = await txnRes.json();
-      setTransactions(txnData.transactions || []);
+      
+      // Filter to show only transactions from last 2 days (48 hours)
+      const now = new Date();
+      const twoDaysAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
+      const recentTxns = (txnData.transactions || []).filter((txn: any) => {
+        const txnDate = new Date(txn.date);
+        return txnDate >= twoDaysAgo;
+      });
+      setTransactions(recentTxns);
 
       // Fetch reversal requests
       const revRes = await fetch('/api/reversal-requests', {
