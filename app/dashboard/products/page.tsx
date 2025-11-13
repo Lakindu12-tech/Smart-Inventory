@@ -104,16 +104,6 @@ export default function ProductsPage() {
       try {
         const productsText = await productsRes.text();
         if (productsText) productsData = JSON.parse(productsText);
-        console.log('📦 Products data received:', productsData);
-        console.log('📦 Sample product:', productsData[0]);
-        if (productsData[0]) {
-          console.log('📦 Sample product stock info:', {
-            name: productsData[0].name,
-            stock: productsData[0].stock,
-            current_stock: productsData[0].current_stock,
-            calculated: getActualStock(productsData[0])
-          });
-        }
       } catch (e) {
         console.error('Error parsing products response:', e);
       }
@@ -209,82 +199,93 @@ export default function ProductsPage() {
 
   const handleApproveRequest = async (requestId: number) => {
     if (!user || user.role !== 'owner') return;
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/product-requests/${requestId}/approve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ owner_comment: 'Approved' })
-      });
-
+    
+    // Optimistic UI update - remove request INSTANTLY
+    setRequests(prev => prev.filter(r => r.id !== requestId));
+    setToastMsg('Request approved successfully!');
+    setToastType('success');
+    setShowToast(true);
+    
+    // Fire and forget - like billing module
+    const token = localStorage.getItem('token');
+    fetch(`/api/product-requests/${requestId}/approve`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ owner_comment: 'Approved' })
+    }).then(response => {
       if (response.ok) {
-        setToastMsg('Request approved successfully!');
-        setToastType('success');
-        setShowToast(true);
-        fetchData();
+        // Refresh products in background - NON-BLOCKING like billing
+        fetch('/api/products', {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.json())
+          .then(data => {
+            setProducts(Array.isArray(data) ? data : []);
+          })
+          .catch(() => {});
       } else {
-        let errorMsg = 'Unknown error';
-        try {
-          const text = await response.text();
-          if (text) {
-            const json = JSON.parse(text);
-            errorMsg = json.message || JSON.stringify(json);
-          }
-        } catch (e) {
-          console.error('Error parsing error response:', e);
-        }
-        setToastMsg(`Error approving request: ${errorMsg}`);
-        setToastType('error');
-        setShowToast(true);
+        // Revert on error
+        response.json().then(errorData => {
+          setRequests(prev => [...prev]); // This will trigger refetch
+          fetchData();
+          setToastMsg(`Error: ${errorData.message}`);
+          setToastType('error');
+          setShowToast(true);
+        }).catch(() => {
+          fetchData();
+          setToastMsg('Error approving request');
+          setToastType('error');
+          setShowToast(true);
+        });
       }
-    } catch (error) {
+    }).catch(() => {
+      fetchData();
       setToastMsg('Error approving request');
       setToastType('error');
       setShowToast(true);
-    }
+    });
   };
 
   const handleRejectRequest = async (requestId: number) => {
     if (!user || user.role !== 'owner') return;
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/product-requests/${requestId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ owner_comment: 'Rejected' })
-      });
-
-      if (response.ok) {
-        setToastMsg('Request rejected successfully!');
-        setToastType('success');
-        setShowToast(true);
+    
+    // Optimistic UI update - remove request immediately and show success
+    setRequests(prev => prev.filter(r => r.id !== requestId));
+    setToastMsg('Request rejected successfully!');
+    setToastType('success');
+    setShowToast(true);
+    
+    // Fire and forget - no need to wait
+    const token = localStorage.getItem('token');
+    fetch(`/api/product-requests/${requestId}/reject`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ owner_comment: 'Rejected' })
+    }).then(response => {
+      if (!response.ok) {
+        // Revert on error
         fetchData();
-      } else {
-        let errorMsg = 'Unknown error';
-        try {
-          const text = await response.text();
-          if (text) {
-            const json = JSON.parse(text);
-            errorMsg = json.message || JSON.stringify(json);
-          }
-        } catch (e) {
-          console.error('Error parsing error response:', e);
-        }
-        setToastMsg(`Error rejecting request: ${errorMsg}`);
-        setToastType('error');
-        setShowToast(true);
+        response.json().then(errorData => {
+          setToastMsg(`Error: ${errorData.message}`);
+          setToastType('error');
+          setShowToast(true);
+        }).catch(() => {
+          setToastMsg('Error rejecting request');
+          setToastType('error');
+          setShowToast(true);
+        });
       }
-    } catch (error) {
+    }).catch(() => {
+      fetchData();
       setToastMsg('Error rejecting request');
       setToastType('error');
       setShowToast(true);
-    }
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -395,8 +396,264 @@ export default function ProductsPage() {
   }
 
   if (user.role === 'owner') {
-    // Remove owner view entirely
-    return null;
+    // Owner view - Product requests management
+    return (
+      <DashboardLayout userRole={user.role} userName={user.name}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          {/* Header */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '2rem' 
+          }}>
+            <h1 style={{ margin: 0, color: '#333' }}>Product Requests Management</h1>
+            <div style={{
+              background: '#ff9500',
+              color: '#fff',
+              padding: '0.5rem 1rem',
+              borderRadius: '20px',
+              fontSize: '0.9rem',
+              fontWeight: 600
+            }}>
+              ⏳ {requests.filter(r => r.status === 'pending').length} Pending Requests
+            </div>
+          </div>
+
+          {/* Pending Requests */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h2 style={{ marginBottom: '1rem', color: '#333' }}>
+              Pending Requests
+            </h2>
+            <div style={{
+              background: '#fff',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1.5fr 1fr 1fr 1.5fr 1fr',
+                padding: '1rem',
+                background: '#f8f9fa',
+                borderBottom: '1px solid #eee',
+                fontWeight: 600,
+                fontSize: '0.9rem'
+              }}>
+                <div>Type</div>
+                <div>Details</div>
+                <div>Requester</div>
+                <div>Date</div>
+                <div>Reason</div>
+                <div>Actions</div>
+              </div>
+              {requests.filter(r => r.status === 'pending').length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
+                  No pending requests.
+                </div>
+              ) : (
+                requests.filter(r => r.status === 'pending').map(request => (
+                  <div key={request.id} style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1.5fr 1fr 1fr 1.5fr 1fr',
+                    padding: '1rem',
+                    borderBottom: '1px solid #eee',
+                    fontSize: '0.9rem',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{ fontWeight: 500 }}>
+                      {request.type === 'add' ? '➕ Add' : 
+                       request.type === 'price' ? '💰 Price' : '📦 Stock'}
+                    </div>
+                    <div>
+                      {request.type === 'add' ? (
+                        <><strong>{request.product_name}</strong> (New Product)</>
+                      ) : request.type === 'price' ? (
+                        <>{products.find(p => p.id === request.product_id)?.name || 'Unknown'} → <strong>Rs.{request.requested_price}</strong></>
+                      ) : (
+                        <>{products.find(p => p.id === request.product_id)?.name || 'Unknown'} → <strong>{request.requested_quantity !== undefined && request.requested_quantity > 0 ? '+' : ''}{request.requested_quantity}</strong></>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                      {request.requester_name}
+                    </div>
+                    <div style={{ fontSize: '0.85rem' }}>
+                      {new Date(request.created_at).toISOString().slice(0, 10)}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                      {request.reason || '-'}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => handleApproveRequest(request.id)}
+                        style={{
+                          background: '#1ecb4f',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '0.5rem 0.8rem',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        ✅ Approve
+                      </button>
+                      <button
+                        onClick={() => handleRejectRequest(request.id)}
+                        style={{
+                          background: '#ff3b3b',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '0.5rem 0.8rem',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        ❌ Reject
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* All Requests History */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h2 style={{ marginBottom: '1rem', color: '#333' }}>
+              All Requests History
+            </h2>
+            <div style={{
+              background: '#fff',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1.5fr 1fr 1fr 1fr 1fr',
+                padding: '1rem',
+                background: '#f8f9fa',
+                borderBottom: '1px solid #eee',
+                fontWeight: 600,
+                fontSize: '0.9rem'
+              }}>
+                <div>Type</div>
+                <div>Details</div>
+                <div>Requester</div>
+                <div>Status</div>
+                <div>Date</div>
+                <div>Comment</div>
+              </div>
+              {requests.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
+                  No requests found.
+                </div>
+              ) : (
+                requests.map(request => (
+                  <div key={request.id} style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1.5fr 1fr 1fr 1fr 1fr',
+                    padding: '1rem',
+                    borderBottom: '1px solid #eee',
+                    fontSize: '0.9rem'
+                  }}>
+                    <div style={{ fontWeight: 500 }}>
+                      {request.type === 'add' ? '➕ Add' : 
+                       request.type === 'price' ? '💰 Price' : '📦 Stock'}
+                    </div>
+                    <div>
+                      {request.type === 'add' ? request.product_name :
+                       request.type === 'price' ? `Rs.${request.requested_price}` :
+                       (request.requested_quantity !== undefined ? `${request.requested_quantity > 0 ? '+' : ''}${request.requested_quantity}` : '')}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                      {request.requester_name}
+                    </div>
+                    <div style={{ 
+                      color: getStatusColor(request.status),
+                      fontWeight: 600,
+                      fontSize: '0.85rem'
+                    }}>
+                      {getStatusIcon(request.status)} {request.status}
+                    </div>
+                    <div style={{ fontSize: '0.85rem' }}>
+                      {new Date(request.created_at).toISOString().slice(0, 10)}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#666' }}>
+                      {request.owner_comment || '-'}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Product Catalog */}
+          <div>
+            <h2 style={{ marginBottom: '1rem', color: '#333' }}>Current Product Catalog</h2>
+            <div style={{
+              background: '#fff',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                padding: '1rem',
+                background: '#f8f9fa',
+                borderBottom: '1px solid #eee',
+                fontWeight: 600,
+                fontSize: '0.9rem'
+              }}>
+                <div>Product Name</div>
+                <div>Price (Rs.)</div>
+                <div>Stock</div>
+                <div>Category</div>
+              </div>
+              {products.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
+                  No products available.
+                </div>
+              ) : (
+                products.map(product => (
+                  <div key={product.id} style={{
+                    display: 'grid',
+                    gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                    padding: '1rem',
+                    borderBottom: '1px solid #eee',
+                    fontSize: '0.9rem'
+                  }}>
+                    <div style={{ fontWeight: 500 }}>{product.name}</div>
+                    <div>Rs.{product.price}</div>
+                    <div style={{ 
+                      color: getActualStock(product) > 0 ? '#1ecb4f' : '#ff3b3b',
+                      fontWeight: 600
+                    }}>
+                      {getActualStock(product)}
+                    </div>
+                    <div>{product.category}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+        {/* Toast notification */}
+        {showToast && (
+          <Toast
+            message={toastMsg}
+            type={toastType}
+            onClose={() => { setShowToast(false); setToastMsg(''); }}
+            duration={3000}
+          />
+        )}
+      </DashboardLayout>
+    );
   }
 
   // Role-based access control - Cashiers can only view products, not submit requests

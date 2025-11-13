@@ -57,7 +57,6 @@ export default function ApprovalsPage() {
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject'>('approve');
   const [comment, setComment] = useState('');
-  const [processing, setProcessing] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
@@ -167,48 +166,35 @@ export default function ApprovalsPage() {
     setFilteredItems(filtered);
   };
 
-  const handleAction = async () => {
+  const handleAction = () => {
     if (!selectedItem) return;
-    setProcessing(true);
-    try {
-      const token = localStorage.getItem('token');
-      let response;
-      if (actionType === 'reject' && !comment.trim()) {
-        throw new Error('Please enter a comment to reject');
-      }
-      if (selectedItem.request_type === 'product_request') {
-        response = await fetch(`/api/product-requests/${selectedItem.id}/${actionType}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ comment })
-        });
-      } else if (selectedItem.request_type === 'stock_movement') {
-        response = await fetch(`/api/stock/${selectedItem.id}/${actionType}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ comment })
-        });
-      } else {
-        throw new Error('Unknown request type');
-      }
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${actionType} request`);
-      }
-      setToastMsg(`Request ${actionType}d successfully!`);
-      setToastType('success');
-      setShowToast(true);
-      setShowActionModal(false);
-      setSelectedItem(null);
-      setComment('');
-      fetchRequests();
-    } catch (error: any) {
-      setToastMsg(`Error ${actionType}ing request: ${error.message}`);
+    if (actionType === 'reject' && !comment.trim()) {
+      setToastMsg('Please enter a comment to reject');
       setToastType('error');
       setShowToast(true);
-    } finally {
-      setProcessing(false);
+      return;
     }
+
+    // Fire API call in background
+    const itemId = selectedItem.id;
+    const token = localStorage.getItem('token');
+    
+    if (selectedItem.request_type === 'product_request') {
+      fetch(`/api/product-requests/${itemId}/${actionType}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ owner_comment: comment || (actionType === 'approve' ? 'Approved' : 'Rejected') })
+      }).catch(() => {});
+    } else if (selectedItem.request_type === 'stock_movement') {
+      fetch(`/api/stock/${itemId}/${actionType}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ comment: comment || (actionType === 'approve' ? 'Approved' : 'Rejected') })
+      }).catch(() => {});
+    }
+
+    // INSTANT HARD REFRESH - like Ctrl+Shift+R
+    window.location.reload();
   };
 
   const getStatusColor = (status: string) => {
@@ -429,10 +415,10 @@ export default function ApprovalsPage() {
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button
                 onClick={handleAction}
-                disabled={processing || (actionType === 'reject' && !comment.trim())}
-                style={{ background: actionType === 'approve' ? '#1ecb4f' : '#ff3b3b', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.8rem 1.5rem', cursor: processing ? 'not-allowed' : 'pointer', fontWeight: 600, flex: 1, opacity: processing ? 0.7 : 1 }}
+                disabled={actionType === 'reject' && !comment.trim()}
+                style={{ background: actionType === 'approve' ? '#1ecb4f' : '#ff3b3b', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.8rem 1.5rem', cursor: (actionType === 'reject' && !comment.trim()) ? 'not-allowed' : 'pointer', fontWeight: 600, flex: 1, opacity: (actionType === 'reject' && !comment.trim()) ? 0.5 : 1 }}
               >
-                {processing ? 'Processing...' : actionType === 'approve' ? 'Approve Request' : 'Reject Request'}
+                {actionType === 'approve' ? 'Approve Request' : 'Reject Request'}
               </button>
               <button
                 onClick={() => setShowActionModal(false)}

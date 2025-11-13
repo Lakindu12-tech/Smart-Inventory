@@ -20,24 +20,40 @@ export async function PATCH(req: NextRequest, { params }) {
     } catch {
       owner_comment = null;
     }
-    // Get the request
-    const requests = await query('SELECT * FROM product_requests WHERE id = ?', [id]) as any[];
-    if (!requests.length) return NextResponse.json({ message: 'Request not found' }, { status: 404 });
-    const request = requests[0];
-    if (request.status !== 'pending') return NextResponse.json({ message: 'Request already processed' }, { status: 400 });
-    // Process by type
-    if (request.type === 'add') {
-      // Insert new product with name and category, price=0
-      await query('INSERT INTO products (name, price, stock, category) VALUES (?, 0, 0, ?)', [request.product_name, request.category]);
-    } else if (request.type === 'price') {
-      // Update product price
-      await query('UPDATE products SET price = ? WHERE id = ?', [request.requested_price, request.product_id]);
-    } else if (request.type === 'stock') {
-      // Update product stock
-      await query('UPDATE products SET stock = stock + ? WHERE id = ?', [request.requested_quantity, request.product_id]);
+    // Get the request and update in single query with validation
+    const requests = await query(
+      'SELECT * FROM product_requests WHERE id = ? AND status = ?', 
+      [id, 'pending']
+    ) as any[];
+    if (!requests.length) {
+      return NextResponse.json({ message: 'Request not found or already processed' }, { status: 404 });
     }
-    // Mark request as approved
-    await query('UPDATE product_requests SET status = ?, owner_comment = ?, updated_at = NOW() WHERE id = ?', ['approved', owner_comment, id]);
+    const request = requests[0];
+    
+    // Process by type and update status in parallel
+    const updates: Promise<any>[] = [
+      query('UPDATE product_requests SET status = ?, owner_comment = ?, updated_at = NOW() WHERE id = ?', 
+        ['approved', owner_comment, id])
+    ];
+    
+    if (request.type === 'add') {
+      updates.push(
+        query('INSERT INTO products (name, price, stock, category) VALUES (?, 0, 0, ?)', 
+          [request.product_name, request.category])
+      );
+    } else if (request.type === 'price') {
+      updates.push(
+        query('UPDATE products SET price = ? WHERE id = ?', 
+          [request.requested_price, request.product_id])
+      );
+    } else if (request.type === 'stock') {
+      updates.push(
+        query('UPDATE products SET stock = stock + ? WHERE id = ?', 
+          [request.requested_quantity, request.product_id])
+      );
+    }
+    
+    await Promise.all(updates);
     return NextResponse.json({ message: 'Request approved and processed' });
   } catch (error: any) {
     return NextResponse.json({ message: error.message || 'Failed to approve request' }, { status: 500 });
