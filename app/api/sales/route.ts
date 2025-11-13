@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch recent transactions if requested
     if (includeTransactions) {
-      const transactions = await query(`
+      let transactionsQuery = `
         SELECT 
           t.id,
           t.transaction_number,
@@ -47,13 +47,26 @@ export async function GET(req: NextRequest) {
           t.payment_status,
           t.status,
           t.discount,
-          t.created_at,
+          t.date,
+          t.cashier_id,
           u.name as cashier_name
         FROM transactions t
         LEFT JOIN users u ON t.cashier_id = u.id
-        ORDER BY t.created_at DESC
+      `;
+      
+      // Filter by cashier_id if user is a cashier (not owner)
+      let queryParams: any[] = [];
+      if (decoded.role === 'cashier') {
+        transactionsQuery += ` WHERE t.cashier_id = ?`;
+        queryParams.push(decoded.userId);
+      }
+      
+      transactionsQuery += `
+        ORDER BY t.date DESC
         LIMIT 50
-      `) as any[];
+      `;
+      
+      const transactions = await query(transactionsQuery, queryParams) as any[];
       data.transactions = transactions;
     }
 

@@ -129,7 +129,7 @@ export default function Dashboard() {
               new Date(t.date).toDateString() === today
             ) || [];
             todaySales = todayTransactions.length;
-            todayRevenue = todayTransactions.reduce((sum: number, t: any) => sum + (t.total_amount || 0), 0);
+            todayRevenue = todayTransactions.reduce((sum: number, t: any) => sum + (parseFloat(t.total_amount) || 0), 0);
           }
         } catch (e) {
           console.error('Error fetching sales data:', e);

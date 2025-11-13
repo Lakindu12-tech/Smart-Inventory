@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, context: Context) {
         t.payment_status,
         t.status,
         t.notes,
-        t.created_at,
+        t.date,
         c.name as customer_name,
         c.phone as customer_phone,
         c.email as customer_email,
